@@ -110,7 +110,7 @@ POMDPs.discount(mdp::DerivTreeMDP) = mdp.params.discount
 # returns the number of actions in the problem
 function POMDPs.n_actions(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["n_actions called"])
+  @notify_observer(p.observer, "debug2", ["n_actions called"])
   sync!(mdp, s)
   return length(actionspace(mdp.tree))
 end
@@ -121,7 +121,7 @@ POMDPs.actions(mdp::DerivTreeMDP) = DerivTreeActionSpace(mdp, collect(1:length(m
 # fills the action space with the actions availiable from state s
 function POMDPs.actions(mdp::DerivTreeMDP, s::DerivTreeState, as::DerivTreeActionSpace)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["actions called"])
+  @notify_observer(p.observer, "debug2", ["actions called"])
   sync!(mdp, s)
   as.action_ids = collect(actionspace(mdp.tree)) #reachable actions
   return as
@@ -129,7 +129,7 @@ end
 
 function POMDPs.domain(action_space::DerivTreeActionSpace)
   p = action_space.mdp.params
-  @notify_observer(p.observer, "verbose2", ["domain called"])
+  @notify_observer(p.observer, "debug2", ["domain called"])
   all_actions = action_space.mdp.all_actions
   ids = action_space.action_ids
   return imap(id -> all_actions[id], ids) #iterator avoids allocation
@@ -138,7 +138,7 @@ end
 # fills d with neighboring states reachable from the s,a pair
 function POMDPs.transition(mdp::DerivTreeMDP, s::DerivTreeState, a::DerivTreeAction, d::DerivTreeTransitionDistr)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["transition called"])
+  @notify_observer(p.observer, "debug2", ["transition called"])
   sync!(mdp, s)
   #what's needed for the rand! call
   d.mdp = mdp
@@ -154,7 +154,7 @@ end
 
 function step!(mdp::DerivTreeMDP, s::DerivTreeState, sp::DerivTreeState, a::DerivTreeAction)
   p = mdp.params
-  @notify_observer(p.observer, "verbose1", ["mdp step! called"])
+  @notify_observer(p.observer, "debug1", ["mdp step! called"])
   sync!(mdp, s)
   step!(mdp.tree, a.action_id) #deterministic transition
   copy!(sp, s)
@@ -170,7 +170,7 @@ POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState, a::DerivTreeAction) = POMDPs
 
 function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["reward called"])
+  @notify_observer(p.observer, "debug2", ["reward called"])
   sync!(mdp, s)
   return get_reward(mdp.tree)
 end
@@ -178,7 +178,7 @@ end
 # returns a boolean indicating if state s is terminal
 function POMDPs.isterminal(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["isterminal called"])
+  @notify_observer(p.observer, "debug2", ["isterminal called"])
   sync!(mdp, s)
   return isterminal(mdp.tree)
 end
@@ -215,10 +215,10 @@ end
 
 function sync!(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
-  @notify_observer(p.observer, "verbose2", ["sync! called current=$(mdp.current_state.past_actions), s=$(s.past_actions)"])
+  @notify_observer(p.observer, "debug2", ["sync! called current=$(mdp.current_state.past_actions), s=$(s.past_actions)"])
   #if sync'd, we're done
   mdp.current_state == s && return
-  @notify_observer(p.observer, "verbose1", ["sync'ing"])
+  @notify_observer(p.observer, "debug1", ["sync'ing"])
   #resync
   initialize!(mdp.tree)
   reset!(mdp.current_state)

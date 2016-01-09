@@ -49,16 +49,17 @@ type MCTSESParams <: SearchParams
   n_iters::Int64
   searchdepth::Int64
   exploration_const::Float64
+  mcts_observer::Observer
 
   observer::Observer
 end
 
 type MCTSESResult <: SearchResult
   tree::DerivationTree
+  actions::Vector{Int64}
   reward::Float64
   expr::Union{Symbol,Expr}
 end
-MCTSESResult() = MCTSESResult(0.0, "")
 
 exprsearch(p::MCTSESParams) = mcts_search(p)
 
@@ -70,7 +71,7 @@ function mcts_search(p::MCTSESParams)
   mdp = DerivTreeMDP(p.mdp_params, tree)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
-  policy = MCTSPolicy(solver, mdp)
+  policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer)
 
   initialize!(tree)
   s = create_state(mdp)
@@ -78,24 +79,23 @@ function mcts_search(p::MCTSESParams)
 
   i = 1
   while !isterminal(tree) && i < 30
-    @notify_observer(p.observer, "verbose2", ["step $i"])
+    @notify_observer(p.observer, "step", [i])
     a = action(policy, s)
-    @notify_observer(p.observer, "verbose2", ["action=$i"])
+    @notify_observer(p.observer, "action", [i, a.action_id])
     step!(mdp, s, sp, a)
     copy!(s, sp)
     i += 1
   end
-  reward = get_reward(tree)
+  total_reward = get_reward(tree)
   expr = get_expr(tree)
-  @notify_observer(p.observer, "verbose1", ["final reward=$reward"])
-  @notify_observer(p.observer, "verbose1", ["final expr=$expr"])
+  @notify_observer(p.observer, "result", [total_reward, string(expr)])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.niters])
+  @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
 
-  return MCTSESResult(tree, reward, expr)
+  return MCTSESResult(tree, s.past_actions, total_reward, expr)
 end
