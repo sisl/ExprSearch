@@ -51,6 +51,8 @@ type MCTSESParams <: SearchParams
   exploration_const::Float64
   mcts_observer::Observer
 
+  safetylimit::Int64
+
   observer::Observer
 end
 
@@ -65,7 +67,7 @@ exprsearch(p::MCTSESParams) = mcts_search(p)
 
 function mcts_search(p::MCTSESParams)
   @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
-  @notify_observer(p.observer, "computinfo", ["starttime", string(now())])
+  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   tree = DerivTreeParams(p.tree_params) |> DerivationTree
   mdp = DerivTreeMDP(p.mdp_params, tree)
@@ -78,12 +80,14 @@ function mcts_search(p::MCTSESParams)
   sp = create_state(mdp)
 
   i = 1
-  while !isterminal(tree) && i < 30
+  while !isterminal(tree) && i < p.safetylimit
+    CPUtic()
     @notify_observer(p.observer, "step", [i])
     a = action(policy, s)
     @notify_observer(p.observer, "action", [i, a.action_id])
     step!(mdp, s, sp, a)
     copy!(s, sp)
+    @notify_observer(p.observer, "cputime", [i, CPUtoq()])
     i += 1
   end
   total_reward = get_reward(tree)
@@ -94,8 +98,11 @@ function mcts_search(p::MCTSESParams)
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.tree_params.maxsteps])
+  @notify_observer(p.observer, "parameters", ["discount", p.mdp_params.discount])
   @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
+  @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
+  @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
 
   return MCTSESResult(tree, s.past_actions, total_reward, expr)
 end
