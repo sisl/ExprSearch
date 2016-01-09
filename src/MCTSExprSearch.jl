@@ -32,23 +32,70 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Grammar-Based Expression Search
-module ExprSearch
+export MCTSESParams, MCTSESResult, mcts_search
 
-export SearchParams, SearchResult, exprsearch, get_reward
+@reexport using GBMCTS
+using RLESUtils.GitUtils
+using CPUTime
 
-include("DerivTreeMDPs.jl")
+type MCTSESParams <: SearchParams
+  #tree params
+  tree_params::DerivTreeParams
 
-using Reexport
-@reexport using .DerivTreeMDPs
-@reexport using GrammaticalEvolution
-@reexport using RLESUtils.Observers
+  #mdp params
+  mdp_params::DerivTreeMDPParams
 
-abstract SearchParams
-abstract SearchResult
+  #mcts iters
+  n_iters::Int64
+  searchdepth::Int64
+  exploration_const::Float64
 
-include("MCTSExprSearch.jl")
+  observer::Observer
+end
 
-end #module
+type MCTSESResult <: SearchResult
+  tree::DerivationTree
+  reward::Float64
+  expr::Union{Symbol,Expr}
+end
+MCTSESResult() = MCTSESResult(0.0, "")
 
+exprsearch(p::MCTSESParams) = mcts_search(p)
 
+function mcts_search(p::MCTSESParams)
+  @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
+  @notify_observer(p.observer, "computinfo", ["starttime", string(now())])
+
+  tree = DerivTreeParams(p.tree_params) |> DerivationTree
+  mdp = DerivTreeMDP(p.mdp_params, tree)
+
+  solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
+  policy = MCTSPolicy(solver, mdp)
+
+  initialize!(tree)
+  s = create_state(mdp)
+  sp = create_state(mdp)
+
+  i = 1
+  while !isterminal(tree) && i < 30
+    @notify_observer(p.observer, "verbose2", ["step $i"])
+    a = action(policy, s)
+    @notify_observer(p.observer, "verbose2", ["action=$i"])
+    step!(mdp, s, sp, a)
+    copy!(s, sp)
+    i += 1
+  end
+  reward = get_reward(tree)
+  expr = get_expr(tree)
+  @notify_observer(p.observer, "verbose1", ["final reward=$reward"])
+  @notify_observer(p.observer, "verbose1", ["final expr=$expr"])
+
+  #meta info
+  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.niters])
+
+  return MCTSESResult(tree, reward, expr)
+end
