@@ -49,6 +49,7 @@ type MCTSESParams <: SearchParams
   n_iters::Int64
   searchdepth::Int64
   exploration_const::Float64
+  q0::Float64
   mcts_observer::Observer
 
   safetylimit::Int64
@@ -73,7 +74,7 @@ function mcts_search(p::MCTSESParams)
   mdp = DerivTreeMDP(p.mdp_params, tree)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
-  policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer)
+  policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
 
   initialize!(tree)
   s = create_state(mdp)
@@ -103,6 +104,7 @@ function mcts_search(p::MCTSESParams)
   @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
   @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
   @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
+  @notify_observer(p.observer, "parameters", ["q0", p.q0])
 
   return MCTSESResult(tree, s.past_actions, total_reward, expr)
 end
