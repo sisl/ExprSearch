@@ -34,7 +34,7 @@
 
 module GE
 
-export GEESParams, GEESResult, ge_search, exprsearch
+export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 export stop, get_fitness
 
 using Reexport

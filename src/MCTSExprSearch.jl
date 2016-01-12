@@ -34,7 +34,7 @@
 
 module MCTS  #ExprSearch.MCTS
 
-export MCTSESParams, MCTSESResult, mcts_search, exprsearch, get_reward
+export MCTSESParams, MCTSESResult, mcts_search, exprsearch, get_reward, SearchParams, SearchResult
 
 include("DerivTreeMDPs.jl")
 
