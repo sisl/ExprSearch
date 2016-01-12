@@ -32,11 +32,22 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-export MCTSESParams, MCTSESResult, mcts_search
+module MCTS  #ExprSearch.MCTS
 
+export MCTSESParams, MCTSESResult, mcts_search, exprsearch, get_reward
+
+include("DerivTreeMDPs.jl")
+
+using Reexport
+@reexport using .DerivTreeMDPs
+@reexport using GrammaticalEvolution
+@reexport using RLESUtils.Observers
 @reexport using GBMCTS
 using RLESUtils.GitUtils
 using CPUTime
+
+import .DerivTreeMDPs.get_reward
+import ..ExprSearch: SearchParams, SearchResult, exprsearch
 
 type MCTSESParams <: SearchParams
   #tree params
@@ -108,3 +119,5 @@ function mcts_search(p::MCTSESParams)
 
   return MCTSESResult(tree, s.past_actions, total_reward, expr)
 end
+
+end #module

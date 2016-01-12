@@ -35,19 +35,18 @@
 #Grammar-Based Expression Search
 module ExprSearch
 
-export SearchParams, SearchResult, exprsearch, get_reward
-
-include("DerivTreeMDPs.jl")
-
-using Reexport
-@reexport using .DerivTreeMDPs
-@reexport using GrammaticalEvolution
-@reexport using RLESUtils.Observers
+export SearchParams, SearchResult, exprsearch
 
 abstract SearchParams
 abstract SearchResult
 
-include("MCTSExprSearch.jl")
+exprsearch(p::SearchParams) = error("Please use a submodule.")
+
+include("MCTSExprSearch.jl") #MCTS
+export MCTS
+
+include("GEExprSearch.jl") #GE
+export GE
 
 end #module
 
