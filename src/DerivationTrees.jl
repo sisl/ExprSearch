@@ -46,7 +46,7 @@ using DataStructures
 
 import Base: empty!, length
 
-typealias DecisionRule Union{OrRule, RangeRule} #rules that require a decision
+typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
 
 type DerivTreeParams
   grammar::Grammar
@@ -135,9 +135,9 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::In
   node.action = a
   node.cmd = rule.name
   idx = ((a - 1) % length(rule.values)) + 1
-  child_node = DerivTreeNode(rule.values[idx], node.depth + 1)
-  push!(node.children, child_node)
-  push!(tree.opennodes, child_node)
+  child = DerivTreeNode(rule.values[idx], node.depth + 1)
+  push!(node.children, child)
+  push!(tree.opennodes, child)
 end
 
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
@@ -148,12 +148,26 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRul
   push!(tree.opennodes, node)
 end
 
+function process!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule, a::Int64)
+  tree.maxdepth = max(tree.maxdepth, node.depth)
+  node.cmd = rule.name
+  reps = ((a - 1) % length(rule.range)) + rule.range.start
+  for i = 1:reps
+    child = DerivTreeNode(rule.value, node.depth + 1)
+    push!(node.children, child)
+  end
+  #load stack in reverse order (to mirror GE behavior)
+  for i = length(node.children):-1:1
+    push!(tree.opennodes, node.children[i])
+  end
+end
+
 #= not tested...
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::AndRule)
   for subrule in rule.values
-    child_node = DerivTreeNode(rule.name, subrule, node.depth + 1)
-    push!(node.children, child_node)
-    push!(tree.opennodes, child_node)
+    child = DerivTreeNode(rule.name, subrule, node.depth + 1)
+    push!(node.children, child)
+    push!(tree.opennodes, child)
   end
 end
 =#
@@ -202,12 +216,37 @@ get_expr(node::DerivTreeNode) = get_expr(node, node.rule)
 get_expr(node::DerivTreeNode, rule::Terminal) = rule.value
 
 function get_expr(node::DerivTreeNode, rule::RangeRule)
-  return ((node.action - 1) % length(rule.range)) + rule.range.start
+  value = ((node.action - 1) % length(rule.range)) + rule.range.start
+
+  if rule.action != nothing
+    value = rule.action(value)
+  end
+
+  return value
 end
 
 function get_expr(node::DerivTreeNode, rule::OrRule)
-  child_node = node.children[1]
-  return get_expr(child_node, child_node.rule)
+  child = node.children[1]
+  value = get_expr(child, child.rule)
+
+  if rule.action != nothing
+    value = rule.action(value)
+  end
+
+  return value
+end
+
+function get_expr(node::DerivTreeNode, rule::RepeatedRule)
+  values = Any[]
+  for child in node.children
+    push!(values, get_expr(child, child.rule))
+  end
+
+  if rule.action !== nothing
+    values = rule.action(values)
+  end
+
+  return values
 end
 
 function get_expr(node::DerivTreeNode, rule::ExprRule)
@@ -215,8 +254,8 @@ function get_expr(node::DerivTreeNode, rule::ExprRule)
   child_i = 1
   for arg in rule.args
     if isa(arg, Rule)
-      child_node = node.children[child_i]
-      push!(xs, get_expr(child_node, child_node.rule))
+      child = node.children[child_i]
+      push!(xs, get_expr(child, child.rule))
       child_i += 1
     else
       push!(xs, arg)
@@ -237,6 +276,7 @@ end
 
 actionspace(node::DerivTreeNode, rule::OrRule) = 1:length(rule.values)
 actionspace(node::DerivTreeNode, rule::RangeRule) = 1:length(rule.range)
+actionspace(node::DerivTreeNode, rule::RepeatedRule) = 1:length(rule.range)
 
 ###########################
 ###

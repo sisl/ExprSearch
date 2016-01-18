@@ -54,7 +54,7 @@ type GEESParams <: SearchParams
   top_percent::Float64
   prob_mutation::Float64
   mutation_rate::Float64
-  default_code::Expr
+  default_code
   max_iters::Int64
 
   ge_observer::Observer
@@ -65,7 +65,7 @@ end
 type GEESResult <: SearchResult
   genome::Vector{Int64}
   fitness::Float64
-  expr::Union{Symbol,Expr}
+  expr
 end
 
 exprsearch(p::GEESParams) = ge_search(p)

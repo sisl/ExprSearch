@@ -73,6 +73,8 @@ type MCTSESResult <: SearchResult
   actions::Vector{Int64}
   reward::Float64
   expr::Union{Symbol,Expr}
+  best_at_eval::Int64
+  totalevals::Int64
 end
 
 exprsearch(p::MCTSESParams) = mcts_search(p)
@@ -100,11 +102,17 @@ function mcts_search(p::MCTSESParams)
     step!(mdp, s, sp, a)
     copy!(s, sp)
     @notify_observer(p.observer, "cputime", [i, CPUtoq()])
+    @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
     i += 1
   end
-  total_reward = get_reward(tree)
+  best_reward = policy.best_reward
+
+  #sanity check
+  @assert best_reward >= get_reward(tree)
+
+  sync!(mdp, policy.best_state) #go to best state
   expr = get_expr(tree)
-  @notify_observer(p.observer, "result", [total_reward, string(expr)])
+  @notify_observer(p.observer, "result", [best_reward, string(expr), policy.best_at_eval, policy.totalevals])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
@@ -117,7 +125,7 @@ function mcts_search(p::MCTSESParams)
   @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
   @notify_observer(p.observer, "parameters", ["q0", p.q0])
 
-  return MCTSESResult(tree, s.past_actions, total_reward, expr)
+  return MCTSESResult(tree, s.past_actions, best_reward, expr, policy.best_at_eval, policy.totalevals)
 end
 
 end #module
