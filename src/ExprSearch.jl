@@ -42,8 +42,11 @@ abstract SearchResult
 
 exprsearch(p::SearchParams) = error("Please use a submodule.")
 
-include("MCTSExprSearch.jl") #MCTS
+include("MCTSExprSearch.jl") #MCTS with commit steps
 export MCTS
+
+include("MCTS2ExprSearch.jl") #MCTS without committing steps
+export MCTS2
 
 include("GEExprSearch.jl") #GE
 export GE

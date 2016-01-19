@@ -32,9 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module MCTS  #ExprSearch.MCTS
+module MCTS2  #ExprSearch.MCTS2
 
-export MCTSESParams, MCTSESResult, mcts_search, exprsearch, get_reward, SearchParams, SearchResult
+export MCTS2ESParams, MCTS2ESResult, mcts_search, exprsearch, get_reward, SearchParams, SearchResult
 
 include("DerivTreeMDPs.jl")
 
@@ -50,7 +50,7 @@ using CPUTime
 import .DerivTreeMDPs.get_reward
 import ..ExprSearch: SearchParams, SearchResult, exprsearch
 
-type MCTSESParams <: SearchParams
+type MCTS2ESParams <: SearchParams
   #tree params
   tree_params::DerivTreeParams
 
@@ -64,12 +64,10 @@ type MCTSESParams <: SearchParams
   q0::Float64
   mcts_observer::Observer
 
-  safetylimit::Int64
-
   observer::Observer
 end
 
-type MCTSESResult <: SearchResult
+type MCTS2ESResult <: SearchResult
   tree::DerivationTree
   actions::Vector{Int64}
   reward::Float64
@@ -78,10 +76,10 @@ type MCTSESResult <: SearchResult
   totalevals::Int64
 end
 
-exprsearch(p::MCTSESParams) = mcts_search(p)
+exprsearch(p::MCTS2ESParams) = mcts2_search(p)
 
-function mcts_search(p::MCTSESParams)
-  @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
+function mcts2_search(p::MCTS2ESParams)
+  @notify_observer(p.observer, "verbose1", ["Starting MCTS2 search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   tree = DerivTreeParams(p.tree_params) |> DerivationTree
@@ -92,24 +90,15 @@ function mcts_search(p::MCTSESParams)
 
   initialize!(tree)
   s = create_state(mdp)
-  sp = create_state(mdp)
 
   i = 1
-  while !isterminal(tree) && i < p.safetylimit
-    CPUtic()
-    @notify_observer(p.observer, "step", [i])
-    a = action(policy, s)
-    @notify_observer(p.observer, "action", [i, a.action_id])
-    step!(mdp, s, sp, a)
-    copy!(s, sp)
-    @notify_observer(p.observer, "cputime", [i, CPUtoq()])
+  while !GBMCTS.isexplored(policy.mcts.tree, s) && i < p.n_iters
+    @notify_observer(policy.observer, "iteration", [n])
+    simulate(policy, s, p.searchdepth)
     @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
     i += 1
   end
   best_reward = policy.best_reward
-
-  #sanity check
-  @assert best_reward >= get_reward(tree)
 
   sync!(mdp, policy.best_state) #go to best state
   expr = get_expr(tree)
@@ -126,7 +115,7 @@ function mcts_search(p::MCTSESParams)
   @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
   @notify_observer(p.observer, "parameters", ["q0", p.q0])
 
-  return MCTSESResult(tree, s.past_actions, best_reward, expr, policy.best_at_eval, policy.totalevals)
+  return MCTS2ESResult(tree, s.past_actions, best_reward, expr, policy.best_at_eval, policy.totalevals)
 end
 
 end #module

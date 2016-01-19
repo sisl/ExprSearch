@@ -34,10 +34,8 @@
 
 module DerivTreeMDPs
 
-include("DerivationTrees.jl")
-
+using DerivationTrees
 using Reexport
-@reexport using .DerivationTrees
 using RLESUtils: Observers
 using POMDPs
 using GrammaticalEvolution
@@ -47,7 +45,7 @@ export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivT
 export DerivTreeTransitionDistr, discount, n_actions, actions, domain, reward, sync!, step!, get_reward
 export create_state, create_action, create_transition_distribution
 
-import .DerivationTrees: step!, isterminal
+import DerivationTrees: step!, isterminal
 import Base: ==, hash, rand!, copy!, push!
 
 type DerivTreeMDPParams
