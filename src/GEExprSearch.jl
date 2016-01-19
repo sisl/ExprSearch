@@ -66,6 +66,8 @@ type GEESResult <: SearchResult
   genome::Vector{Int64}
   fitness::Float64
   expr
+  best_at_eval::Int64
+  totalevals::Int64
 end
 
 exprsearch(p::GEESParams) = ge_search(p)
@@ -74,10 +76,16 @@ stop() = false #dispatch doesn't work? otherwise would use stop(xs...) as a defa
 get_fitness() = error("fitness function not defined") #user should override this,
 #dispatch doesn't work otherwise would use get_fitness(xs...) as a default
 
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, p::GEESParams)
+function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, pop::ExamplePopulation, p::GEESParams)
   try
     ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
     ind.fitness = get_fitness(ind.code)
+    pop.totalevals += 1
+    if ind.fitness < pop.best_fitness
+      pop.best_fitness = ind.fitness
+      pop.best_ind = ind
+      pop.best_at_eval = pop.totalevals
+    end
   catch e
     if !isa(e, MaxWrapException)
       s = take(string(e), 50) |> join
@@ -115,11 +123,15 @@ function ge_search(p::GEESParams)
     @notify_observer(p.observer, "best_individual", [iter, fitness, code])
     iter += 1
   end
-  ind = pop[1]
+  @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
+
+  fitness = pop.best_fitness
+  ind = pop.best_ind
   genome = ind.genome
-  fitness = ind.fitness
   expr = ind.code
-  @notify_observer(p.observer, "result", [fitness, string(expr)])
+  best_at_eval = pop.best_at_eval
+  totalevals = pop.totalevals
+  @notify_observer(p.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
@@ -134,7 +146,7 @@ function ge_search(p::GEESParams)
   @notify_observer(p.observer, "parameters", ["default_code", string(p.default_code)])
   @notify_observer(p.observer, "parameters", ["max_iters", p.max_iters])
 
-  return GEESResult(genome, fitness, expr)
+  return GEESResult(genome, fitness, expr, best_at_eval, totalevals)
 end
 
 end #module
