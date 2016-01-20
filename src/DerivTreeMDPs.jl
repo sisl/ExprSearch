@@ -73,11 +73,21 @@ type DerivTreeMDP <: POMDP
   tree::DerivationTree #true state of the sim
   current_state::DerivTreeState #for syncing purposes
   all_actions::Vector{DerivTreeAction}
-end
+  userargs::Vector{Any}
 
-function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree)
-  all_actions = generate_all_actions(p.grammar)
-  return DerivTreeMDP(p, tree, DerivTreeState(), all_actions)
+  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::DerivationTree, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
+    return new(p, tree, DerivTreeState(), all_actions, userargs)
+  end
+
+  function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree, userargs...)
+    mdp = new()
+    mdp.params = p
+    mdp.tree = tree
+    mdp.current_state = DerivTreeState()
+    mdp.all_actions = generate_all_actions(p.grammar)
+    mdp.userargs = [userargs...]
+    return mdp
+  end
 end
 
 type DerivTreeStateSpace <: AbstractSpace
@@ -170,7 +180,7 @@ function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
   @notify_observer(p.observer, "debug2", ["reward called"])
   sync!(mdp, s)
-  return get_reward(mdp.tree)
+  return get_reward(mdp.tree, mdp.userargs...)
 end
 
 # returns a boolean indicating if state s is terminal

@@ -76,14 +76,14 @@ type MCTS2ESResult <: SearchResult
   totalevals::Int64
 end
 
-exprsearch(p::MCTS2ESParams) = mcts2_search(p)
+exprsearch(p::MCTS2ESParams, userargs...) = mcts2_search(p, userargs...)
 
-function mcts2_search(p::MCTS2ESParams)
+function mcts2_search(p::MCTS2ESParams, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting MCTS2 search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   tree = DerivTreeParams(p.tree_params) |> DerivationTree
-  mdp = DerivTreeMDP(p.mdp_params, tree)
+  mdp = DerivTreeMDP(p.mdp_params, tree, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
   policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
