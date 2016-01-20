@@ -94,8 +94,11 @@ function mcts2_search(p::MCTS2ESParams)
   i = 1
   while !GBMCTS.isexplored(policy.mcts.tree, s) && i < p.n_iters
     @notify_observer(policy.observer, "iteration", [n])
+    CPUtic()
     simulate(policy, s, p.searchdepth)
+    @notify_observer(p.observer, "cputime", [i, CPUtoq()])
     @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
+    @notify_observer(p.observer, "tree", [i, policy.mcts.tree])
     i += 1
   end
   best_reward = policy.best_reward
