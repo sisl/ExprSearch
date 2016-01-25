@@ -35,7 +35,6 @@
 module GE
 
 export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
-export stop, get_fitness
 
 using Reexport
 @reexport using GrammaticalEvolution
@@ -43,11 +42,10 @@ using Reexport
 using RLESUtils.GitUtils
 using CPUTime
 
-import ..ExprSearch: SearchParams, SearchResult, exprsearch
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
 
 type GEESParams <: SearchParams
   #GrammaticalEvolution params
-  grammar::Grammar
   genome_size::Int64
   pop_size::Int64
   maxwraps::Int64
@@ -70,49 +68,20 @@ type GEESResult <: SearchResult
   totalevals::Int64
 end
 
-exprsearch(p::GEESParams) = ge_search(p)
+exprsearch(p::GEESParams, problem::ExprProblem, userargs...) = ge_search(p, problem::ExprProblem, userargs...)
 
-stop() = false #dispatch doesn't work? otherwise would use stop(xs...) as a default
-get_fitness() = error("fitness function not defined") #user should override this,
-#dispatch doesn't work otherwise would use get_fitness(xs...) as a default
-
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, pop::ExamplePopulation, p::GEESParams)
-  try
-    ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
-    ind.fitness = get_fitness(ind.code)
-    pop.totalevals += 1
-    if ind.fitness < pop.best_fitness
-      pop.best_fitness = ind.fitness
-      pop.best_ind = ind
-      pop.best_at_eval = pop.totalevals
-    end
-  catch e
-    if !isa(e, MaxWrapException)
-      s = take(string(e), 50) |> join
-      println("exception = $s")
-      s = take(string(ind.code), 50) |> join
-      len = length(string(ind.code))
-      println("length=$len, code: $(s)")
-      f = open("errorlog.txt", "a") #log to file
-      println(f, typeof(e))
-      println(f, string(ind.code))
-      close(f)
-    end
-    ind.code = p.default_code
-    ind.fitness = realmax(Float64)
-  end
-end
-
-function ge_search(p::GEESParams)
+function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting GE search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+
+  grammar = create_grammar(problem)
 
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = realmax(Float64)
   iter = 1
-  while !stop(iter, fitness) && iter <= p.max_iters
+  while iter <= p.max_iters
     CPUtic()
-    pop = generate(p.grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate, p)
+    pop = generate(grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate, p, problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = pop[1].code
     @notify_observer(p.observer, "iteration_time", Any[iter, CPUtoq()])
@@ -147,6 +116,33 @@ function ge_search(p::GEESParams)
   @notify_observer(p.observer, "parameters", ["max_iters", p.max_iters])
 
   return GEESResult(genome, fitness, expr, best_at_eval, totalevals)
+end
+
+function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, pop::ExamplePopulation, p::GEESParams, problem::ExprProblem, userargs...)
+  try
+    ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
+    ind.fitness = get_fitness(problem, ind.code, userargs...)
+    pop.totalevals += 1
+    if ind.fitness < pop.best_fitness
+      pop.best_fitness = ind.fitness
+      pop.best_ind = ind
+      pop.best_at_eval = pop.totalevals
+    end
+  catch e
+    if !isa(e, MaxWrapException)
+      s = take(string(e), 50) |> join
+      println("exception = $s")
+      s = take(string(ind.code), 50) |> join
+      len = length(string(ind.code))
+      println("length=$len, code: $(s)")
+      f = open("errorlog.txt", "a") #log to file
+      println(f, typeof(e))
+      println(f, string(ind.code))
+      close(f)
+    end
+    ind.code = p.default_code
+    ind.fitness = realmax(Float64)
+  end
 end
 
 end #module

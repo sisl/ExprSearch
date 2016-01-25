@@ -35,15 +35,24 @@
 #Grammar-Based Expression Search
 module ExprSearch
 
+using Reexport
+@reexport using GrammaticalEvolution
+
+export ExprProblem, create_grammar, get_fitness
 export SearchParams, SearchResult, exprsearch
 
+abstract ExprProblem
 abstract SearchParams
 abstract SearchResult
 
-exprsearch(p::SearchParams) = error("Please use a submodule.")
+create_grammar(problem::ExprProblem) = error("Grammar not defined")
+get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
 
-include("MCTSExprSearch.jl") #MCTS with commit steps
-export MCTS
+exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
+
+#not working...
+#include("MCTSExprSearch.jl") #MCTS with commit steps
+#export MCTS
 
 include("MCTS2ExprSearch.jl") #MCTS without committing steps
 export MCTS2

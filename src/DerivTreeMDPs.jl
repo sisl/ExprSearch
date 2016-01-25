@@ -42,20 +42,24 @@ using GrammaticalEvolution
 using Iterators
 
 export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivTreeStateSpace, DerivTreeActionSpace
-export DerivTreeTransitionDistr, discount, n_actions, actions, domain, reward, sync!, step!, get_reward, get_expr
+export DerivTreeTransitionDistr, discount, n_actions, actions, domain, reward, sync!, step!, get_fitness, get_expr
 export create_state, create_action, create_transition_distribution
 
 import DerivationTrees: step!, isterminal, get_expr
 import Base: ==, hash, rand!, copy!, push!
+import ExprSearch: ExprProblem, get_fitness
 
 type DerivTreeMDPParams
   grammar::Grammar
+  max_neg_reward::Float64
+  step_reward::Float64
   discount::Float64
   observer::Observer
 end
 
-function DerivTreeMDPParams(grammar::Grammar, discount::Float64=1.0; observer::Observer=Observer())
-  return DerivTreeMDPParams(grammar, discount, observer)
+function DerivTreeMDPParams(grammar::Grammar, max_neg_reward::Float64, step_reward::Float64,
+                            discount::Float64=1.0; observer::Observer=Observer())
+  return DerivTreeMDPParams(grammar, max_neg_reward, step_reward, discount, observer)
 end
 
 type DerivTreeAction <: Action
@@ -66,18 +70,20 @@ DerivTreeAction() = DerivTreeAction(-1)
 type DerivTreeMDP <: POMDP
   params::DerivTreeMDPParams
   tree::DerivationTree #true state of the sim
+  problem::ExprProblem #used in calling get_fitness
   statehash::UInt64 #hash for current state for sync'ing purposes
   all_actions::Vector{DerivTreeAction}
   userargs::Vector{Any}
 
-  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::DerivationTree, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
-    return new(p, tree, zero(UInt64), all_actions, userargs)
+  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::DerivationTree, problem::ExprProblem, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
+    return new(p, tree, zero(UInt64), problem, all_actions, userargs)
   end
 
-  function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree, userargs...)
+  function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree, problem::ExprProblem, userargs...)
     mdp = new()
     mdp.params = p
     mdp.tree = tree
+    mdp.problem = problem
     mdp.statehash = zero(UInt64)
     mdp.all_actions = generate_all_actions(p.grammar)
     mdp.userargs = [userargs...]
@@ -166,7 +172,7 @@ function step!(s::DerivTreeState, sp::DerivTreeState, a::DerivTreeAction)
   return sp
 end
 
-get_reward() = error("get_reward not implemented")
+get_fitness() = error("fitness not defined")
 
 # returns the immediate reward of being in state s and performing action a
 POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState, a::DerivTreeAction) = POMDPs.reward(mdp, s)
@@ -175,7 +181,17 @@ function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
   @notify_observer(p.observer, "debug2", ["reward called"])
   sync!(s)
-  return get_reward(s.mdp.tree, mdp.userargs...)
+
+  tree = mdp.tree
+  reward = if iscomplete(tree)
+    expr = get_expr(tree)
+    -get_fitness(mdp.problem, expr, mdp.userargs...)
+  elseif isterminal(tree) #not-compilable
+    p.max_neg_reward
+  else #each step
+    p.step_reward
+  end
+  return reward
 end
 
 # returns a boolean indicating if state s is terminal

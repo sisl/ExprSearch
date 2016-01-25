@@ -47,15 +47,16 @@ using Reexport
 using RLESUtils.GitUtils
 using CPUTime
 
-import .DerivTreeMDPs.get_reward
-import ..ExprSearch: SearchParams, SearchResult, exprsearch
+import .DerivTreeMDPs.get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
 
 type MCTS2ESParams <: SearchParams
   #tree params
-  tree_params::DerivTreeParams
+  maxsteps::Int64
 
   #mdp params
-  mdp_params::DerivTreeMDPParams
+  max_neg_reward::Float64
+  step_reward::Float64
 
   #mcts iters
   n_iters::Int64
@@ -76,14 +77,18 @@ type MCTS2ESResult <: SearchResult
   totalevals::Int64
 end
 
-exprsearch(p::MCTS2ESParams, userargs...) = mcts2_search(p, userargs...)
+exprsearch(p::MCTS2ESParams, problem::ExprProblem, userargs...) = mcts2_search(p, problem::ExprProblem, userargs...)
 
-function mcts2_search(p::MCTS2ESParams, userargs...)
+function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting MCTS2 search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
-  tree = DerivTreeParams(p.tree_params) |> DerivationTree
-  mdp = DerivTreeMDP(p.mdp_params, tree, userargs...)
+  grammar = create_grammar(problem)
+  tree_params = DerivTreeParams(grammar, p.maxsteps)
+  mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
+
+  tree = DerivTreeParams(tree_params) |> DerivationTree
+  mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
   policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
@@ -96,7 +101,7 @@ function mcts2_search(p::MCTS2ESParams, userargs...)
     @notify_observer(p.observer, "iteration", [n])
 
     CPUtic()
-    simulate(policy, s, p.searchdepth)
+    simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
     @notify_observer(p.observer, "cputime", [i, CPUtoq()])
     @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state]) #pass mdp back to avoid heavy computation from get_expr everytime (logger uses intervalling), TODO: implement intervalling in notify_observer
@@ -112,8 +117,10 @@ function mcts2_search(p::MCTS2ESParams, userargs...)
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.tree_params.maxsteps])
-  @notify_observer(p.observer, "parameters", ["discount", p.mdp_params.discount])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(p.observer, "parameters", ["max_neg_reward", p.max_neg_reward])
+  @notify_observer(p.observer, "parameters", ["step_reward", p.step_reward])
+  @notify_observer(p.observer, "parameters", ["discount", mdp_params.discount])
   @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
   @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
   @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
