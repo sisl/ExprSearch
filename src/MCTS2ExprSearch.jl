@@ -87,7 +87,7 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
   mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
 
-  tree = DerivTreeParams(tree_params) |> DerivationTree
+  tree = DerivationTree(tree_params)
   mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
@@ -98,13 +98,13 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
 
   i = 1
   while !GBMCTS.isexplored(policy.mcts.tree, s) && i < p.n_iters
-    @notify_observer(p.observer, "iteration", [n])
+    @notify_observer(p.observer, "iteration", [i])
 
     CPUtic()
     simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
     @notify_observer(p.observer, "cputime", [i, CPUtoq()])
-    @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state]) #pass mdp back to avoid heavy computation from get_expr everytime (logger uses intervalling), TODO: implement intervalling in notify_observer
+    @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
     @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
 
     i += 1

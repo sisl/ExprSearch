@@ -38,6 +38,7 @@ export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 
 using Reexport
 @reexport using GrammaticalEvolution
+@reexport using DerivationTrees #for pretty strings
 @reexport using RLESUtils.Observers
 using RLESUtils.GitUtils
 using CPUTime
@@ -61,6 +62,7 @@ type GEESParams <: SearchParams
 end
 
 type GEESResult <: SearchResult
+  tree::DerivationTree
   genome::Vector{Int64}
   fitness::Float64
   expr
@@ -89,7 +91,7 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
     @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
     @notify_observer(p.observer, "code", Any[iter, string(code)])
     @notify_observer(p.observer, "population", Any[iter, pop])
-    @notify_observer(p.observer, "best_individual", [iter, fitness, code])
+    @notify_observer(p.observer, "current_best", [iter, fitness, code])
     iter += 1
   end
   @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
@@ -100,6 +102,12 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   expr = ind.code
   best_at_eval = pop.best_at_eval
   totalevals = pop.totalevals
+
+  tree_params = DerivTreeParams(grammar, length(ind.genome))
+  tree = DerivationTree(tree_params)
+  play!(tree, ind)
+  @assert expr == get_expr(tree)
+
   @notify_observer(p.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
   #meta info
@@ -115,7 +123,7 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "parameters", ["default_code", string(p.default_code)])
   @notify_observer(p.observer, "parameters", ["max_iters", p.max_iters])
 
-  return GEESResult(genome, fitness, expr, best_at_eval, totalevals)
+  return GEESResult(tree, genome, fitness, expr, best_at_eval, totalevals)
 end
 
 function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, pop::ExamplePopulation, p::GEESParams, problem::ExprProblem, userargs...)
