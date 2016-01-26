@@ -58,11 +58,12 @@ type MCTS2ESParams <: SearchParams
   max_neg_reward::Float64
   step_reward::Float64
 
-  #mcts iters
+  #mcts
   n_iters::Int64
   searchdepth::Int64
   exploration_const::Float64
   q0::Float64
+  seed::Int64
   mcts_observer::Observer
 
   observer::Observer
@@ -90,7 +91,8 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
   tree = DerivationTree(tree_params)
   mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
 
-  solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const)
+  solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const,
+                      rng=MersenneTwister(p.seed))
   policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
 
   initialize!(tree)
