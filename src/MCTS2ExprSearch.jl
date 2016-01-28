@@ -34,7 +34,7 @@
 
 module MCTS2  #ExprSearch.MCTS2
 
-export MCTS2ESParams, MCTS2ESResult, mcts_search, exprsearch, get_reward, SearchParams, SearchResult, expr_at_state
+export MCTS2ESParams, MCTS2ESResult, mcts_search, exprsearch, SearchParams, SearchResult
 
 include("DerivTreeMDPs.jl")
 

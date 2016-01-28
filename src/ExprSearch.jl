@@ -60,6 +60,9 @@ export MCTS2
 include("GEExprSearch.jl") #GE
 export GE
 
+include("SAExprSearch.jl") #SA
+export SA
+
 end #module
 
 
