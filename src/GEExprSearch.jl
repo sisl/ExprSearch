@@ -86,7 +86,8 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
     pop = generate(grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate, p, problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = pop[1].code
-    @notify_observer(p.observer, "iteration_time", Any[iter, CPUtoq()])
+    cputime = CPUtoq()
+    @notify_observer(p.observer, "iteration_time", Any[iter, cputime])
     @notify_observer(p.observer, "fitness", Any[iter, fitness])
     @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
     @notify_observer(p.observer, "code", Any[iter, string(code)])

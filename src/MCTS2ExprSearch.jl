@@ -105,7 +105,8 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
     CPUtic()
     simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
-    @notify_observer(p.observer, "cputime", [i, CPUtoq()])
+    cputime = CPUtoq()
+    @notify_observer(p.observer, "cputime", [i, cputime])
     @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
     @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
 

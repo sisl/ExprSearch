@@ -95,7 +95,6 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
 
   T = p.T1
   for i = 1:p.n_epochs
-    println("i=", i)
     @notify_observer(p.observer, "iteration", [i])
     @notify_observer(p.observer, "temperature", [i, T])
 
@@ -114,7 +113,8 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
     T *= p.alpha
     ###########################################
 
-    @notify_observer(p.observer, "cputime", [i, CPUtoq()])
+    cputime = CPUtoq()
+    @notify_observer(p.observer, "cputime", [i, cputime])
     @notify_observer(p.observer, "current_best", [i, result.fitness, result.expr])
   end
 
@@ -175,9 +175,9 @@ function perturb!(tree::DerivationTree, retries::Int64=typemax(Int64))
   return b_success
 end
 
-#accept rule for simulated annealing, always accept a downhill step
+#accept rule for simulated annealing, always accept a downhill step or sidestep
 function accept(s::SAState, sp::SAState, T::Float64)
-  return sp.fitness < s.fitness || exp((s.fitness - sp.fitness) / T) > rand()
+  return sp.fitness <= s.fitness || exp((s.fitness - sp.fitness) / T) > rand()
 end
 
 function accept_prob(problem::ExprProblem, maxsteps::Int64, P1::Float64, N::Int64)
@@ -198,14 +198,14 @@ function accept_prob(problem::ExprProblem, maxsteps::Int64, P1::Float64, N::Int6
     #println("s=", s.expr, ", fitness=", s.fitness)
     #println("sp=", sp.expr, ", fitness=", sp.fitness)
 
-    if iscomplete(sp.tree) && rand() < P1
-      #println("accepted")
+    iscomplete(sp.tree) || continue
+
+    if sp.fitness <= s.fitness || rand() < P1
       #track uphill moves
       if sp.fitness > s.fitness
         sum_uphill += sp.fitness - s.fitness
         n_uphill += 1
       end
-
       s = sp
     end
   end
@@ -237,7 +237,7 @@ function estimate_temp_params(problem::ExprProblem,
   end
 
   deltabar = mean(avg_uphills)
-  P1 = mean(Ps)
+  #P1 = mean(Ps)
   T1 = -deltabar / log(P1)
   println("deltabar=", deltabar, ", P1=", P1, ", T1=", T1)
 
