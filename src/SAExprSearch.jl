@@ -36,6 +36,7 @@ module SA  #ExprSearch.SA simulated annealing
 
 export SAESParams, SAESResult, sa_search, exprsearch, SearchParams, SearchResult
 export accept_prob, estimate_temp_params
+export psa_search, PSAESParams
 
 using Reexport
 @reexport using DerivationTrees
@@ -47,6 +48,7 @@ using Iterators
 
 import DerivationTrees.initialize!
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import Base: isless
 
 type SAESParams <: SearchParams
   #tree params
@@ -55,9 +57,15 @@ type SAESParams <: SearchParams
   #SA
   T1::Float64 #initial temperature
   alpha::Float64 #decay rate
-  n_epochs::Int64
+  n_epochs::Int64 #iterations
+  n_starts::Int64 #number of starts
 
   observer::Observer
+end
+
+type PSAESParams <: SearchParams
+  n_batches::Int64
+  sa_params::SAESParams
 end
 
 type SAState
@@ -79,7 +87,15 @@ end
 SAESResult(tree::DerivationTree) = SAESResult(tree, realmax(Float64), 0, 0, 0)
 SAESResult(s::SAState) = SAESResult(s.tree, s.fitness, s.expr, 1, 1)
 
-exprsearch(p::SAESParams, problem::ExprProblem, userargs...) = sa_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::SAESParams, problem::ExprProblem, userargs...) = sa_search(p, problem, userargs...)
+exprsearch(p::PSAESParams, problem::ExprProblem, userargs...) = psa_search(p, problem, userargs...)
+
+function psa_search(p::PSAESParams, problem::ExprProblem, userargs...)
+  results = pmap(1:p.n_batches) do tid
+    sa_search(p.sa_params, problem, userargs...)
+  end
+  return minimum(results) #best fitness
+end
 
 function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting SA search"])
@@ -93,29 +109,33 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   initialize!(s, problem)
   result = SAESResult(s)
 
-  T = p.T1
-  for i = 1:p.n_epochs
-    @notify_observer(p.observer, "iteration", [i])
-    @notify_observer(p.observer, "temperature", [i, T])
+  for j = 1:p.n_starts
+    j != 1 && initialize!(s, problem) #alternatively could restart to best state so far
 
-    CPUtic()
+    T = p.T1
+    for i = 1:p.n_epochs
+      @notify_observer(p.observer, "iteration", [j, i])
+      @notify_observer(p.observer, "temperature", [j, i, T])
 
-    ###########################################
-    # SA algorithm
-    sp = neighbor(s, problem, result)
+      CPUtic()
 
-    #only accept complete trees
-    if iscomplete(sp.tree) && accept(s, sp, T)
-      s = sp
+      ###########################################
+      # SA algorithm
+      sp = neighbor(s, problem, result)
+
+      #only accept complete trees
+      if iscomplete(sp.tree) && accept(s, sp, T)
+        s = sp
+      end
+
+      #update temperature
+      T *= p.alpha
+      ###########################################
+
+      cputime = CPUtoq()
+      @notify_observer(p.observer, "cputime", [j, i, cputime])
+      @notify_observer(p.observer, "current_best", [j, i, result.fitness, result.expr])
     end
-
-    #update temperature
-    T *= p.alpha
-    ###########################################
-
-    cputime = CPUtoq()
-    @notify_observer(p.observer, "cputime", [i, cputime])
-    @notify_observer(p.observer, "current_best", [i, result.fitness, result.expr])
   end
 
   @notify_observer(p.observer, "result", [result.fitness, string(result.expr), result.best_at_eval, result.totalevals])
@@ -125,7 +145,6 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.observer, "parameters", ["temp_schedule", p.temp_schedule])
 
   return result
 end
@@ -246,5 +265,7 @@ function estimate_temp_params(problem::ExprProblem,
 
   return T1, alpha, n_epochs
 end
+
+isless(r1::SAESResult, r2::SAESResult) = r1.fitness < r2.fitness
 
 end #module
