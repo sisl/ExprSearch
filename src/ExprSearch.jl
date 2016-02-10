@@ -50,7 +50,7 @@ get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
 
 exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
 
-#not working...
+#deprecated...
 #include("MCTSExprSearch.jl") #MCTS with commit steps
 #export MCTS
 
@@ -62,6 +62,9 @@ export GE
 
 include("SAExprSearch.jl") #SA
 export SA
+
+include("MCExprSearch.jl") #MC
+export MC
 
 end #module
 
