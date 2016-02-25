@@ -41,7 +41,7 @@ using Reexport
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
 @reexport using RLESUtils.Observers
-using RLESUtils: GitUtils, Rentals
+using RLESUtils: GitUtils
 using CPUTime
 using Iterators
 
@@ -55,14 +55,18 @@ type MCESParams <: SearchParams
 
   #MC
   n_samples::Int64 #samples
+  earlystop::Bool #enable early stop
 
   observer::Observer
 end
+MCESParams(maxsteps::Int64, n_samples::Int64, observer::Observer) = MCESParams(maxsteps, n_samples, true, observer)
 
 type PMCESParams <: SearchParams
   n_threads::Int64
   mc_params::MCESParams
+  observer::Observer
 end
+PMCESParams(n_threads::Int64, mc_params::MCESParams) = PMCESParams(n_threads, mc_params, Observer())
 
 type MCState
   tree::DerivationTree
@@ -99,10 +103,30 @@ exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, prob
 exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
 
 function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
+  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  tic()
+
   results = pmap(1:p.n_threads) do tid
     mc_search(p.mc_params, problem, userargs...)
   end
-  return minimum(results) #best fitness
+
+  result = minimum(results) #best fitness
+  totalevals = sum(map(r -> r.totalevals, results))
+
+  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), totalevals])
+
+  #meta info
+  computetime_s = toq()
+  @notify_observer(p.observer, "computeinfo", ["computetime_s",  computetime_s])
+  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
+  @notify_observer(p.observer, "parameters", ["n_samples", p.mc_params.n_samples])
+  @notify_observer(p.observer, "parameters", ["earlystop", p.mc_params.earlystop])
+  @notify_observer(p.observer, "parameters", ["n_threads", p.n_threads])
+
+  return result
 end
 
 function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
@@ -122,7 +146,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
 
     ###############
     #MC algorithm
-    sample!(s, problem)
+    sample!(s, problem, result.fitness, realmax(Float64), p.earlystop)
     update!(result, s)
     ###############
 
@@ -138,15 +162,23 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(p.observer, "parameters", ["n_samples", p.n_samples])
+  @notify_observer(p.observer, "parameters", ["earlystop", p.earlystop])
 
   return result
 end
 
 #initialize to random state
-function sample!(s::MCState, problem::ExprProblem, retries::Int64=typemax(Int64))
+function sample!(s::MCState, problem::ExprProblem, bestfitness::Float64, defaultval::Float64,
+                 earlystop::Bool=true, retries::Int64=typemax(Int64))
   rand!(s.tree, retries) #random tree
   s.expr = get_expr(s.tree)
-  s.fitness = get_fitness(problem, s.expr)
+  s.fitness = if earlystop
+    get_fitness(problem, s.expr, bestfitness, defaultval)
+  else
+    get_fitness(problem, s.expr)
+  end
+  s
 end
 
 #update the global best trackers with the current state

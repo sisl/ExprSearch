@@ -42,7 +42,7 @@ using Reexport
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
 @reexport using RLESUtils.Observers
-using RLESUtils: GitUtils, Rentals, SwapBuffers
+using RLESUtils: GitUtils, SwapBuffers
 using CPUTime
 using Iterators
 
@@ -64,9 +64,12 @@ type SAESParams <: SearchParams
 end
 
 type PSAESParams <: SearchParams
-  n_batches::Int64
+  n_threads::Int64
   sa_params::SAESParams
+  observer::Observer
 end
+
+PSAESParams(n_threads::Int64, sa_params::SAESParams) = PSAESParams(n_threads, sa_params, Observer())
 
 type SAState
   tree::DerivationTree
@@ -103,10 +106,32 @@ exprsearch(p::SAESParams, problem::ExprProblem, userargs...) = sa_search(p, prob
 exprsearch(p::PSAESParams, problem::ExprProblem, userargs...) = psa_search(p, problem, userargs...)
 
 function psa_search(p::PSAESParams, problem::ExprProblem, userargs...)
-  results = pmap(1:p.n_batches) do tid
+  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  tic()
+
+  results = pmap(1:p.n_threads) do tid
     sa_search(p.sa_params, problem, userargs...)
   end
-  return minimum(results) #best fitness
+
+  result = minimum(results) #best fitness
+  totalevals = sum(map(r -> r.totalevals, results))
+
+  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), totalevals])
+
+  #meta info
+  computetime_s = toq()
+  @notify_observer(p.observer, "computeinfo", ["computetime_s",  computetime_s])
+  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(p.observer, "parameters", ["maxsteps", p.sa_params.maxsteps])
+  @notify_observer(p.observer, "parameters", ["T1", p.sa_params.T1])
+  @notify_observer(p.observer, "parameters", ["alpha", p.sa_params.alpha])
+  @notify_observer(p.observer, "parameters", ["n_epochs", p.sa_params.n_epochs])
+  @notify_observer(p.observer, "parameters", ["n_starts", p.sa_params.n_starts])
+  @notify_observer(p.observer, "parameters", ["n_threads", p.n_threads])
+
+  return result
 end
 
 function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
@@ -159,6 +184,10 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(p.observer, "parameters", ["T1", p.T1])
+  @notify_observer(p.observer, "parameters", ["alpha", p.alpha])
+  @notify_observer(p.observer, "parameters", ["n_epochs", p.n_epochs])
+  @notify_observer(p.observer, "parameters", ["n_starts", p.n_starts])
 
   return result
 end
