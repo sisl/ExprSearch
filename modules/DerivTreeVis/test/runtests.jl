@@ -32,55 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS2), Monte Carlo Tree Search with committing steps (MCTS) [deprecated].
-
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
-"""
-module ExprSearch
-
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
-
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
-
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils.ModLoader
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
-end
-
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
-
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
-
-include("GEExprSearch.jl") #GE
-export GE
-
-include("SAExprSearch.jl") #SA
-export SA
-
-include("MCExprSearch.jl") #MC
-export MC
-
-end #module
+using GrammarExpts
+using DerivTreeVis
 
 

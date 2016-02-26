@@ -32,7 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module MC  #ExprSearch.MC direct Monte Carlo
+"""
+Monte Carlo search by drawing uniform samples from the root of the grammar.
+Returns the sample with the best result.  On large datasets earlystop can be an effective
+time-saver by not evaluating the fitness function over the entire dataset.
+"""
+module MC
 
 export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult
 export PMCESParams

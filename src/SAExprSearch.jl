@@ -32,7 +32,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module SA  #ExprSearch.SA simulated annealing
+"""
+Simulated annealing search with geometrically decreasing temperature schedule.
+Propose by randomly choosing an existing node from the parse tree,
+and replacing the subtree by a randomly generated one.  Use PSA for parallel version over n_threads.
+"""
+module SA
 
 export SAESParams, SAESResult, sa_search, exprsearch, SearchParams, SearchResult
 export accept_prob, estimate_temp_params

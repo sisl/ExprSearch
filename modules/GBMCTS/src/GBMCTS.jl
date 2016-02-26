@@ -1,9 +1,14 @@
+"""
+Grammar-based Monte Carlo Tree Search algorithm
+Modifications: max instead of mean. Number of actions varying with state. Deterministic assumed.
+Subtree explorations are tracked.
+"""
 module GBMCTS
 
 using POMDPs
 
-export 
-    MCTSSolver, 
+export
+    MCTSSolver,
     MCTSPolicy,
     action,
     simulate,

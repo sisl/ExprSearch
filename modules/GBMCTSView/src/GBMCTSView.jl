@@ -32,6 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+"""
+Viewer for the GBMCTS tree.
+"""
 module GBMCTSView
 
 export TreeView, logstep!

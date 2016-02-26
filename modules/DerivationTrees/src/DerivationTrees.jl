@@ -32,8 +32,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Derivation tree for GrammaticalEvolution
-#Warning: not all rules are supported
+"""
+Derivation tree (aka parse tree or syntax tree) based on GrammaticalEvolution.jl grammar rules.
+Warning: not all rules are supported
+"""
 module DerivationTrees
 
 export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, maxlength

@@ -33,54 +33,38 @@
 # *****************************************************************************
 
 """
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS2), Monte Carlo Tree Search with committing steps (MCTS) [deprecated].
-
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
+Visualizer for DrivationTrees.jl
+Produces a TikzQTree
 """
-module ExprSearch
+module DerivTreeVis
 
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+export derivtreevis
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
+using DerivationTrees
+using TreeToJSON
+using TikzQTrees
+using Iterators
 
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils.ModLoader
+function derivtreevis(tree::DerivationTree, outfileroot::AbstractString)
 
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
+  get_name(tree::DerivationTree) = get_name(tree.root)
+  function get_name(node::DerivTreeNode)
+    cmd_text = node.cmd
+    rule_text = split(string(typeof(node.rule)), ".")[end]
+    action_text = string(node.action)
+    expr_text = string(get_expr(node))
+    text = join([cmd_text, rule_text, action_text, expr_text], "\\\\")
+    return text
+  end
 
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
+  get_children(tree::DerivationTree) = get_children(tree.root)
+  get_children(node::DerivTreeNode) = imap(x -> ("", x), node.children)
+  get_depth(tree::DerivationTree) = get_depth(tree.root)
+  get_depth(node::DerivTreeNode) = node.depth
 
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+  viscalls = VisCalls(get_name, get_children, get_depth)
+  write_json(tree, viscalls, "$(outfileroot).json")
+  plottree("$(outfileroot).json", outfileroot="$(outfileroot)")
 end
 
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
-
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
-
-include("GEExprSearch.jl") #GE
-export GE
-
-include("SAExprSearch.jl") #SA
-export SA
-
-include("MCExprSearch.jl") #MC
-export MC
-
 end #module
-
-
