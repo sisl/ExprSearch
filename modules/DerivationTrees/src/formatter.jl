@@ -32,57 +32,43 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Grammar-Based Expression Search
-module ExprSearch
+export Format, pretty_string, f_args, get_cmd
 
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+using RLESUtils.StringUtils
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
+typealias Format Dict{ASCIIString,Function} #usage: D[cmd] = f(cmd, args)
 
-using Reexport
-@reexport using GrammaticalEvolution
+f_args(cmd, args) = "$cmd(" * join(args,", ") * ")"
+get_cmd(cmd, args) = "$cmd"
 
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
+function pretty_string(tree::DerivationTree, fmt::Format, capitalize::Bool=false)
+  s = pretty_string(tree.root, tree.root.rule, fmt)
+  return capitalize ? capitalize_first(s) : s
+end
 
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-function load_to_path()
-  subdirs = readdir(MODULEDIR)
-  map!(x -> abspath(joinpath(MODULEDIR, x)), subdirs)
-  filter!(isdir, subdirs)
-  for subdir in subdirs
-    push!(LOAD_PATH, joinpath(subdir, "src"))
+function pretty_base(node::DerivTreeNode, fmt::Format)
+  cmd = node.cmd
+  args = map(x -> pretty_string(x, x.rule, fmt), node.children)
+  if haskey(fmt, cmd)
+    out = fmt[cmd](cmd, args) #user callback
+  elseif isempty(args)
+    out = get_cmd(cmd, args) #return cmd
+  elseif length(args) == 1
+    out = args[1] #passthrough
+  else
+    out = f_args(cmd, args) #f(arg1, arg2, ...)
   end
+  return out
 end
 
-load_to_path()
-
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+function pretty_string(node::DerivTreeNode, rule::RangeRule, fmt::Format)
+  node.cmd = string(get_expr(node, rule))
+  return pretty_base(node, fmt)
 end
 
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
+function pretty_string(node::DerivTreeNode, rule::Terminal, fmt::Format)
+  node.cmd = string(rule.value)
+  return pretty_base(node, fmt)
+end
 
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
-
-include("GEExprSearch.jl") #GE
-export GE
-
-include("SAExprSearch.jl") #SA
-export SA
-
-include("MCExprSearch.jl") #MC
-export MC
-
-end #module
-
-
+pretty_string(node::DerivTreeNode, rule::Rule, fmt::Format) = pretty_base(node, fmt)

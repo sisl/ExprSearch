@@ -1,7 +1,7 @@
 # *****************************************************************************
 # Written by Ritchie Lee, ritchie.lee@sv.cmu.edu
 # *****************************************************************************
-# Copyright ã 2015, United States Government, as represented by the
+# Copyright ã ``2015, United States Government, as represented by the
 # Administrator of the National Aeronautics and Space Administration. All
 # rights reserved.  The Reinforcement Learning Encounter Simulator (RLES)
 # platform is licensed under the Apache License, Version 2.0 (the "License");
@@ -32,57 +32,55 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Grammar-Based Expression Search
-module ExprSearch
+using DerivationTrees
+using Base.Test
 
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+function test1()
+  const MAXSTEPS = 25
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
-
-using Reexport
-@reexport using GrammaticalEvolution
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-function load_to_path()
-  subdirs = readdir(MODULEDIR)
-  map!(x -> abspath(joinpath(MODULEDIR, x)), subdirs)
-  filter!(isdir, subdirs)
-  for subdir in subdirs
-    push!(LOAD_PATH, joinpath(subdir, "src"))
+  function create_grammar()
+    @grammar grammar begin
+      start = ex
+      ex = sum | product | (ex) | value
+      sum = Expr(:call, :+, ex, ex)
+      product = Expr(:call, :*, ex, ex)
+      value = :x | :y | digit
+      digit = 0:9
+    end
+    return grammar
   end
+
+  grammar = create_grammar()
+
+  params = DerivTreeParams(grammar, MAXSTEPS)
+  tree = DerivationTree(params)
+
+  srand(1)
+
+  rand!(tree)
+  get_expr(tree)
+
+  size(tree)
+  count(x->isa(x.rule, DecisionRule), tree)
+
+  for i = 1:500
+    try
+      @time begin
+        node = rand(tree)
+        rand!(tree, node, 1)
+      end
+      get_expr(tree)
+    end
+  end
+
+  tree1 = DerivationTree(params)
+  rand!(tree1)
+  @show get_expr(tree1)
+  @show size(tree1)
+  tree2 = DerivationTree(params)
+  rand!(tree2)
+  @show get_expr(tree2)
+  @show size(tree2)
+  copy!(tree2, tree1)
+  @show get_expr(tree2)
 end
-
-load_to_path()
-
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
-end
-
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
-
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
-
-include("GEExprSearch.jl") #GE
-export GE
-
-include("SAExprSearch.jl") #SA
-export SA
-
-include("MCExprSearch.jl") #MC
-export MC
-
-end #module
-
-

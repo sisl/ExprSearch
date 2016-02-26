@@ -32,57 +32,59 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#Grammar-Based Expression Search
-module ExprSearch
+module GBMCTSView
 
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+export TreeView, logstep!
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
+using POMDPs
+using GBMCTS
+using TreeToJSON
+using Plots
+using Iterators
 
-using Reexport
-@reexport using GrammaticalEvolution
+type TreeView
+  film::Animation
+  steps::Vector{JDict}
+end
 
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
+TreeView() = TreeView(Animation(), JDict[])
 
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
+function get_name(s::StateNode)
+  n_text = "n=[" * join(s.n, ",") * "]"
+  Q_text = "Q=[" * join(map(x->signif(x, 4), s.Q), ",") * "]"
+  na_text = "n_actions=$(length(s.action_map))"
+  sp_text = "sp_visited=[" * join(map(x->!isnull(x), s.nextstates), ",")  * "]"
+  expl_text = "fully_explored=$(s.explored)"
+  return join([n_text, Q_text, na_text, sp_text, expl_text], "\\\\")
+end
 
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
+function logstep!(view::TreeView, tree::Dict{UInt64,StateNode}, startstate::State, curstate::State)
 
-function load_to_path()
-  subdirs = readdir(MODULEDIR)
-  map!(x -> abspath(joinpath(MODULEDIR, x)), subdirs)
-  filter!(isdir, subdirs)
-  for subdir in subdirs
-    push!(LOAD_PATH, joinpath(subdir, "src"))
+  function get_children(s::StateNode)
+    valids = filter(x -> !isnull(x), s.nextstates)
+    return imap(x -> ("", tree[x]), valids)
   end
+
+  function get_color(s::StateNode)
+    color = "steelblue" #default
+    if all(s.n .== 0) color = "red" end #completely unvisited
+    if s == tree[startstate] color = "grey" end #start state
+    if s.explored color = "purple" end #fully explored
+    if length(s.n) == 0 color = "black" end #terminal
+    if s == tree[curstate] color = "orange" end #current state
+    return color
+  end
+
+  vc = VisCalls(get_name, get_children)
+  d = to_jdict(tree[startstate], vc, color=get_color)
+  push!(view.steps, d)
+
+  #animation frame
+  #p = plottree(d)
+  #push!(view.film, p)
+
+  return d
 end
 
-load_to_path()
 
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
-end
-
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
-
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
-
-include("GEExprSearch.jl") #GE
-export GE
-
-include("SAExprSearch.jl") #SA
-export SA
-
-include("MCExprSearch.jl") #MC
-export MC
-
-end #module
-
-
+end # module
