@@ -145,6 +145,7 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
 
   result = SAESResult()
 
+  tstart = CPUtime_us()
   for j = 1:p.n_starts
     s = active(s_buffer)
     initialize!(s, problem, result) #initialize randomly
@@ -154,7 +155,6 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
       @notify_observer(p.observer, "iteration", [j, i])
       @notify_observer(p.observer, "temperature", [j, i, T])
 
-      CPUtic()
       ###########################################
       # SA algorithm
       s = active(s_buffer)
@@ -170,9 +170,8 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
       T *= p.alpha
       ###########################################
 
-      cputime = CPUtoq()
-      @notify_observer(p.observer, "cputime", [j, i, cputime])
-      @notify_observer(p.observer, "current_best", [j, i, result.fitness, result.expr])
+      @notify_observer(p.observer, "elapsed_cpu_s", [j, i, float(CPUtime_us() - tstart) * 1e-6])
+      @notify_observer(p.observer, "current_best", [j, i, result.fitness, string(result.expr)])
     end
     gc()
   end
