@@ -42,6 +42,7 @@ const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
 
 using Reexport
 @reexport using GrammaticalEvolution
+using RLESUtils.ModLoader
 
 abstract ExprProblem
 abstract SearchParams
@@ -52,16 +53,7 @@ get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
 
 exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
 
-function load_to_path()
-  subdirs = readdir(MODULEDIR)
-  map!(x -> abspath(joinpath(MODULEDIR, x)), subdirs)
-  filter!(isdir, subdirs)
-  for subdir in subdirs
-    push!(LOAD_PATH, joinpath(subdir, "src"))
-  end
-end
-
-load_to_path()
+load_to_path(MODULEDIR)
 
 function test(pkgs::AbstractString...; coverage::Bool=false)
   cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
