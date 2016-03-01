@@ -42,7 +42,7 @@ export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, m
 export initialize!, step!, isterminal, actionspace, iscomplete, play!
 export IncompleteException
 
-using RLESUtils: Observers, MemPools
+using RLESUtils, Observers, MemPools
 using Reexport
 @reexport using GrammaticalEvolution
 using DataStructures

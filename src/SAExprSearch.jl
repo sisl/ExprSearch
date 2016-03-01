@@ -44,10 +44,11 @@ export accept_prob, estimate_temp_params
 export psa_search, PSAESParams
 
 using Reexport
+using ExprSearch
+using RLESUtils, GitUtils, SwapBuffers
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
-@reexport using RLESUtils.Observers
-using RLESUtils: GitUtils, SwapBuffers
+@reexport using Observers
 using CPUTime
 using Iterators
 

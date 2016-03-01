@@ -32,55 +32,63 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS2), Monte Carlo Tree Search with committing steps (MCTS) [deprecated].
+using ExprSearch
+using ExprSearch.MC
+import ExprSearch: ExprProblem, create_grammar, get_fitness
 
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
-"""
-module ExprSearch
+const XRANGE = 0.0:0.5:10.0
+const YRANGE = 0.0:0.5:10.0
+const W_LEN = 0.1
 
-export ExprProblem, create_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+gt(x, y) = 2x + 3y + 5
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
+type Symbolic{T<:AbstractFloat} <: ExprProblem
+  xrange::FloatRange{T}
+  yrange::FloatRange{T}
+  w_len::Float64
+end
+Symbolic() = Symbolic(XRANGE, YRANGE, W_LEN)
 
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils, ModLoader
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+function ExprSearch.create_grammar(problem::Symbolic)
+  @grammar grammar begin
+    start = ex
+    ex = sum | product | (ex) | value
+    sum = Expr(:call, :+, ex, ex)
+    product = Expr(:call, :*, ex, ex)
+    value = :x | :y | digit
+    digit = 0:9
+  end
+  return grammar
 end
 
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
+function to_function(problem::Symbolic, expr)
+  @eval f(x, y) = $expr
+  return f
+end
 
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
+function ExprSearch.get_fitness(problem::Symbolic, expr)
+  #mean-square error over a range
+  sum_se = 0.0
+  f = to_function(problem, expr)
+  for x in problem.xrange, y in problem.yrange
+    sum_se += abs2(f(x, y) - gt(x, y))
+  end
+  n = length(problem.xrange) * length(problem.yrange)
+  fitness = sum_se / n + problem.w_len * length(string(expr))
 
-include("GEExprSearch.jl") #GE
-export GE
+  return fitness
+end
 
-include("SAExprSearch.jl") #SA
-export SA
+function shorttest(; maxsteps::Int64=20,
+                   n_samples::Int64=50)
 
-include("MCExprSearch.jl") #MC
-export MC
+  problem = Symbolic()
+  mc_params = MCESParams(maxsteps, n_samples, false)
+  result = exprsearch(mc_params, problem)
+  @show result.fitness
+  @show result.expr
 
-end #module
+  nothing
+end
 
-
+shorttest()

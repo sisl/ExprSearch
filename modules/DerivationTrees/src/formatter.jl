@@ -34,7 +34,7 @@
 
 export Format, pretty_string, f_args, get_cmd
 
-using RLESUtils.StringUtils
+using RLESUtils, StringUtils
 
 typealias Format Dict{ASCIIString,Function} #usage: D[cmd] = f(cmd, args)
 

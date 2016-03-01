@@ -39,12 +39,13 @@ export MCTS2ESParams, MCTS2ESResult, mcts_search, exprsearch, SearchParams, Sear
 include("DerivTreeMDPs.jl")
 
 using Reexport
+using ExprSearch
+using RLESUtils, GitUtils
 @reexport using DerivationTrees
 @reexport using .DerivTreeMDPs
 @reexport using GrammaticalEvolution
-@reexport using RLESUtils.Observers
+@reexport using Observers
 @reexport using GBMCTS
-using RLESUtils.GitUtils
 using CPUTime
 
 import .DerivTreeMDPs.get_fitness

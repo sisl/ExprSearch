@@ -37,10 +37,11 @@ module GE
 export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 
 using Reexport
+using ExprSearch
+using RLESUtils, GitUtils
 @reexport using GrammaticalEvolution
 @reexport using DerivationTrees #for pretty strings
-@reexport using RLESUtils.Observers
-using RLESUtils.GitUtils
+@reexport using Observers
 using CPUTime
 
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness

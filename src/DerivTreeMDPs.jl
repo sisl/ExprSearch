@@ -34,9 +34,9 @@
 
 module DerivTreeMDPs
 
-using DerivationTrees
+using ExprSearch, DerivationTrees
 using Reexport
-using RLESUtils: Observers
+using RLESUtils, Observers
 using POMDPs
 using GrammaticalEvolution
 using Iterators

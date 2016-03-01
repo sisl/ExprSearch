@@ -43,10 +43,11 @@ export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult
 export PMCESParams
 
 using Reexport
+using ExprSearch
+using RLESUtils, GitUtils
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
-@reexport using RLESUtils.Observers
-using RLESUtils: GitUtils
+@reexport using Observers
 using CPUTime
 using Iterators
 
@@ -65,7 +66,8 @@ type MCESParams <: SearchParams
 
   observer::Observer
 end
-MCESParams(maxsteps::Int64, n_samples::Int64, observer::Observer) = MCESParams(maxsteps, n_samples, true, 10, observer)
+MCESParams(maxsteps::Int64, n_samples::Int64, earlystop::Bool=true, earlystop_div::Int64=10) = MCESParams(maxsteps, n_samples, earlystop, earlystop_div, Observer())
+MCESParams(maxsteps::Int64, n_samples::Int64, observer::Observer=Observer()) = MCESParams(maxsteps, n_samples, true, 10, observer)
 
 type PMCESParams <: SearchParams
   n_threads::Int64

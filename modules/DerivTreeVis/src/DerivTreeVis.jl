@@ -40,9 +40,8 @@ module DerivTreeVis
 
 export derivtreevis
 
-using DerivationTrees
-using TreeToJSON
-using TikzQTrees
+using ExprSearch, DerivationTrees
+using RLESUtils, TreeToJSON, TikzQTrees
 using Iterators
 
 function derivtreevis(tree::DerivationTree, outfileroot::AbstractString)

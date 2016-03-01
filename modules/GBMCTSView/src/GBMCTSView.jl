@@ -40,8 +40,8 @@ module GBMCTSView
 export TreeView, logstep!
 
 using POMDPs
-using GBMCTS
-using TreeToJSON
+using ExprSearch, GBMCTS
+using RLESUtils, TreeToJSON
 using Plots
 using Iterators
 

@@ -1,4 +1,4 @@
-using RLESUtils.Observers
+using RLESUtils, Observers
 import Base: getindex, setindex!, haskey
 
 # State node in the search tree
