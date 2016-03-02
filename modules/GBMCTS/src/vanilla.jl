@@ -1,3 +1,4 @@
+using POMDPs
 using RLESUtils, Observers
 import Base: getindex, setindex!, haskey
 

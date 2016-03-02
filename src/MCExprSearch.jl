@@ -114,7 +114,7 @@ function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
   tic()
 
-  results = pmap(1:p.n_threads) do tid
+  results = map(1:p.n_threads) do tid
     mc_search(p.mc_params, problem, userargs...)
   end
 
