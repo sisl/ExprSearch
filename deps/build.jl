@@ -32,7 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-Pkg.clone("https://github.com/sisl/RLESUtils.jl.git", "RLESUtils")
-Pkg.clone("https://github.com/rcnlee/GrammaticalEvolution.git", "GrammaticalEvolution")
-Pkg.clone("https://github.com/JuliaPOMDP/POMDPs.jl.git", "POMDPs")
-Pkg.clone("https://github.com/JuliaPOMDP/POMDPDistributions.jl.git", "POMDPDistributions")
+pkgs = Pkg.installed()
+!haskey(pkgs, "RLESUtils") && Pkg.clone("https://github.com/sisl/RLESUtils.jl.git", "RLESUtils")
+!haskey(pkgs, "GrammaticalEvolution") && Pkg.clone("https://github.com/rcnlee/GrammaticalEvolution.git", "GrammaticalEvolution")
+!haskey(pkgs, "POMDPs") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPs.jl.git", "POMDPs")
+!haskey(pkgs, "POMDPDistributions") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPDistributions.jl.git", "POMDPDistributions")
