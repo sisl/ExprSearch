@@ -15,7 +15,7 @@ function StateNode(nA, space::AbstractSpace, q0::Float64=0.0, explored::Bool=fal
   Q = fill(q0, nA) #zeros(Reward, nA)
   # creates the action map
   am = Action[]
-  for a in domain(space)
+  for a in iterator(space)
     push!(am, a)
   end
   nextstates = [Nullable{UInt64}() for i = 1:nA]

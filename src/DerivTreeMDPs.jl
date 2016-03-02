@@ -42,7 +42,7 @@ using GrammaticalEvolution
 using Iterators
 
 export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivTreeStateSpace, DerivTreeActionSpace
-export DerivTreeTransitionDistr, discount, n_actions, actions, domain, reward, sync!, step!, get_fitness, get_expr
+export DerivTreeTransitionDistr, discount, n_actions, actions, iterator, reward, sync!, step!, get_fitness, get_expr
 export create_state, create_action, create_transition_distribution
 
 import DerivationTrees: step!, isterminal, get_expr
@@ -140,9 +140,9 @@ function POMDPs.actions(mdp::DerivTreeMDP, s::DerivTreeState, as::DerivTreeActio
   return as
 end
 
-function POMDPs.domain(action_space::DerivTreeActionSpace)
+function POMDPs.iterator(action_space::DerivTreeActionSpace)
   p = action_space.mdp.params
-  @notify_observer(p.observer, "debug2", ["domain called"])
+  @notify_observer(p.observer, "debug2", ["iterator called"])
   all_actions = action_space.mdp.all_actions
   ids = action_space.action_ids
   return imap(id -> all_actions[id], ids) #iterator avoids allocation
