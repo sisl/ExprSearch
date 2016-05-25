@@ -86,6 +86,7 @@ MCState(tree::DerivationTree) = MCState(tree, realmax(Float64), 0)
 
 type MCESResult <: SearchResult
   tree::DerivationTree
+  actions::Vector{Int64}
   fitness::Float64
   expr
   best_at_eval::Int64
@@ -93,6 +94,7 @@ type MCESResult <: SearchResult
 
   function MCESResult()
     result = new()
+    result.actions = Int64[]
     result.fitness = realmax(Float64)
     result.expr = 0
     result.best_at_eval = 0
@@ -179,7 +181,7 @@ end
 #initialize to random state
 function sample!(s::MCState, problem::ExprProblem, bestfitness::Float64, defaultval::Float64,
                  earlystop::Bool, earlystop_div::Int64, retries::Int64=typemax(Int64))
-  rand!(s.tree, retries) #random tree
+  rand!(s.tree, retries=retries) #sample uniformly
   s.expr = get_expr(s.tree)
   s.fitness = if earlystop
     get_fitness(problem, s.expr, bestfitness, defaultval, earlystop_div)
@@ -196,6 +198,8 @@ function update!(result::MCESResult, s::MCState)
   #update globals
   if s.fitness < result.fitness
     copy!(result.tree, s.tree)
+    resize!(result.actions, length(s.tree.actions))
+    copy!(result.actions, s.tree.actions)
     result.fitness = s.fitness
     result.expr = s.expr
     result.best_at_eval = result.totalevals

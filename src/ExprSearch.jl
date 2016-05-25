@@ -35,7 +35,7 @@
 """
 Grammar-Based Expression Search.
 Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS2), Monte Carlo Tree Search with committing steps (MCTS) [deprecated].
+Monte Carlo Tree Search (MCTS) (no committing steps).
 
 Usage: using ExprSearch.MC; result = exprsearch(p, problem)
 """
@@ -65,12 +65,8 @@ function test(pkgs::AbstractString...; coverage::Bool=false)
   cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
 end
 
-#deprecated...
-#include("MCTSExprSearch.jl") #MCTS with commit steps
-#export MCTS
-
-include("MCTS2ExprSearch.jl") #MCTS without committing steps
-export MCTS2
+include("MCTSExprSearch.jl") #MCTS without committing steps
+export MCTS
 
 include("GEExprSearch.jl") #GE
 export GE

@@ -32,9 +32,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module MCTS2  #ExprSearch.MCTS2
+module MCTS  #ExprSearch.MCTS
 
-export MCTS2ESParams, MCTS2ESResult, mcts_search, exprsearch, SearchParams, SearchResult
+export MCTSESParams, MCTSESResult, mcts_search, exprsearch, SearchParams, SearchResult
 
 include("DerivTreeMDPs.jl")
 
@@ -51,7 +51,7 @@ using CPUTime
 import .DerivTreeMDPs.get_fitness
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
 
-type MCTS2ESParams <: SearchParams
+type MCTSESParams <: SearchParams
   #tree params
   maxsteps::Int64
 
@@ -63,6 +63,7 @@ type MCTS2ESParams <: SearchParams
   n_iters::Int64
   searchdepth::Int64
   exploration_const::Float64
+  maxmod::Bool
   q0::Float64
   seed::Int64
   mcts_observer::Observer
@@ -70,19 +71,19 @@ type MCTS2ESParams <: SearchParams
   observer::Observer
 end
 
-type MCTS2ESResult <: SearchResult
+type MCTSESResult <: SearchResult
   tree::DerivationTree
   actions::Vector{Int64}
-  reward::Float64
+  fitness::Float64
   expr::Union{Symbol,Expr}
   best_at_eval::Int64
   totalevals::Int64
 end
 
-exprsearch(p::MCTS2ESParams, problem::ExprProblem, userargs...) = mcts2_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::MCTSESParams, problem::ExprProblem, userargs...) = mcts_search(p, problem::ExprProblem, userargs...)
 
-function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "verbose1", ["Starting MCTS2 search"])
+function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
+  @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = create_grammar(problem)
@@ -93,29 +94,31 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
   mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const,
-                      rng=MersenneTwister(p.seed))
+                      maxmod=p.maxmod, rng=MersenneTwister(p.seed))
   policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
 
   initialize!(tree)
   s = create_state(mdp)
 
+  tstart = CPUtime_us()
   i = 1
-  while !GBMCTS.isexplored(policy.mcts.tree, s) && i < p.n_iters
+  while !GBMCTS.isexplored(policy.mcts.tree, s) && i <= p.n_iters
     @notify_observer(p.observer, "iteration", [i])
 
     CPUtic()
     simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
     cputime = CPUtoq()
-    @notify_observer(p.observer, "cputime", [i, cputime])
-    @notify_observer(p.observer, "current_best", [i, policy.best_reward, policy.best_state])
+    @notify_observer(p.observer, "elapsed_cpu_s", [i, float(CPUtime_us() - tstart) * 1e-6])
+    @notify_observer(p.observer, "current_best", [i, -policy.best_reward, policy.best_state]) #report fitness
     @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
 
     i += 1
   end
-  best_reward = policy.best_reward
+  best_fitness = -policy.best_reward
   expr = get_expr(policy.best_state)
-  @notify_observer(p.observer, "result", [best_reward, string(expr), policy.best_at_eval, policy.totalevals])
+  best_actions = policy.best_state.past_actions
+  @notify_observer(p.observer, "result", [best_fitness, string(expr), policy.best_at_eval, policy.totalevals])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
@@ -128,9 +131,10 @@ function mcts2_search(p::MCTS2ESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
   @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
   @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
+  @notify_observer(p.observer, "parameters", ["maxmod", p.maxmod])
   @notify_observer(p.observer, "parameters", ["q0", p.q0])
 
-  return MCTS2ESResult(tree, s.past_actions, best_reward, expr, policy.best_at_eval, policy.totalevals)
+  return MCTSESResult(tree, best_actions, best_fitness, expr, policy.best_at_eval, policy.totalevals)
 end
 
 end #module

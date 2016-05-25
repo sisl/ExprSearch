@@ -27,16 +27,18 @@ type MCTSSolver <: POMDPs.Solver
   n_iterations::Int64	# number of iterations during each action() call
   depth::Int64 # the max depth of the tree
   exploration_constant::Float64 # constant balancing exploration and exploitation
+  maxmod::Bool
   rng::AbstractRNG # random number generator
   tree::Dict{UInt64, StateNode} # the search tree
 end
 # solver constructor
-function MCTSSolver(;n_iterations::Int64 = 100,
-                    depth::Int64 = 10,
-                    exploration_constant::Float64 = 1.0,
+function MCTSSolver(;n_iterations::Int64=100,
+                    depth::Int64=10,
+                    exploration_constant::Float64=1.0,
+                    maxmod::Bool=false, #use the max modification when updating q
                     rng = MersenneTwister(1))
   tree = Dict{UInt64, StateNode}() #key is hash(State)
-  return MCTSSolver(n_iterations, depth, exploration_constant, rng, tree)
+  return MCTSSolver(n_iterations, depth, exploration_constant, maxmod, rng, tree)
 end
 
 # MCTS policy type
@@ -141,14 +143,15 @@ function POMDPs.simulate(policy::MCTSPolicy, state::State, depth::Int64)
     return rollout(policy, depth, state)
   end
 
-  # pick action using UCB
   # don't choose fully-explored subtrees
   best_i = -1
   best_val = -realmax(Float64)
   for i = 1:na
     if !isexplored(tree, snode.nextstates[i])
-      val = snode.Q[i] + exploration_constant * real(sqrt(complex(log(sum(snode.n)) / snode.n[i]))) #UCB
-      if best_i < 0 || val > best_val #accept the first unexplored one or accept if best
+      #selection criteria
+      val = snode.Q[i] + exploration_constant * real(sqrt(complex(log(sum(snode.n)) / snode.n[i])))
+
+      if best_i < 0 || val > best_val #accept the first unexplored one or accept if multiple ties for best
         best_val = val
         best_i = i
       end
@@ -172,8 +175,12 @@ function POMDPs.simulate(policy::MCTSPolicy, state::State, depth::Int64)
   # update the Q and n values
   q = r + discount_factor * simulate(policy, sp, depth - 1)
   snode.n[i] += 1 # increase number of node visits by one
-  #snode.Q[i] += ((q - snode.Q[i]) / (snode.n[i])) # moving average of Q value
-  snode.Q[i] = max(snode.Q[i], q)
+
+  if policy.mcts.maxmod
+    snode.Q[i] = max(snode.Q[i], q)
+  else
+    snode.Q[i] += ((q - snode.Q[i]) / (snode.n[i])) # moving average of Q value
+  end
 
   #if all children are fully-explored, mark this node as fully-explored
   snode.explored = isexplored(tree, snode.nextstates)

@@ -74,7 +74,7 @@ type DerivationTree
   params::DerivTreeParams
   root::DerivTreeNode
   opennodes::Stack
-  nsteps::Int64 #track number of steps taken
+  actions::Vector{Int64} #track actions
   maxactions::Int64 #maximum size of actionspace
   nodepool::MemPool
   observer::Observer
@@ -83,7 +83,7 @@ end
 function DerivationTree(p::DerivTreeParams, nodepool::MemPool=MemPool(DerivTreeNode,200,400); observer::Observer=Observer())
   root = DerivTreeNode(p.grammar.rules[:start])
   maxactions = maxlength(p.grammar)
-  tree = DerivationTree(p, root, Stack(DerivTreeNode, STACKSIZE), 0, maxactions, nodepool, observer)
+  tree = DerivationTree(p, root, Stack(DerivTreeNode, STACKSIZE), Int64[], maxactions, nodepool, observer)
   return tree
 end
 
@@ -94,7 +94,7 @@ immutable IncompleteException <: Exception end
 #reset tree, children are deallocated
 function reset!(tree::DerivationTree)
   empty!(tree.opennodes)
-  tree.nsteps = 0
+  empty!(tree.actions)
   return2pool(tree.nodepool, tree.root.children)
   reset!(tree.root)
   tree.root.rule = tree.params.grammar.rules[:start]
@@ -136,14 +136,14 @@ function step!(tree::DerivationTree, a::Int64)
   if isempty(opennodes)
     return #we're done
   end
-  tree.nsteps += 1
+  push!(tree.actions, a)
   node = pop!(opennodes)
   process!(tree, node, node.rule, a)
   process_non_decisions!(tree)
 end
 
 function isterminal(tree::DerivationTree)
-  return iscomplete(tree) || tree.nsteps >= tree.params.maxsteps
+  return iscomplete(tree) || length(tree.actions) >= tree.params.maxsteps
 end
 
 iscomplete(tree::DerivationTree) = isempty(tree.opennodes)
@@ -328,7 +328,7 @@ end
 function play!(tree::DerivationTree, actions::Vector{Int64})
   initialize!(tree)
   n = 0
-  while !isterminal(tree)
+  while !isterminal(tree) && n < length(actions)
     n += 1
     step!(tree, actions[n])
   end
@@ -356,20 +356,45 @@ end
 
 done(startnode::DerivTreeNode, stack::Stack) = isempty(stack)
 
-count(tree::DerivationTree) = count(tree.root)
-count(node::DerivTreeNode) = count(x -> true, node)
-count(f::Function, tree::DerivationTree) = count(f::Function, tree.root)
-
-function count(f::Function, node::DerivTreeNode)
-  n = f(node)
-  for child in node.children
-    n += count(f, child)
-  end
-  return n
+function copy!(dst::DerivationTree, src::DerivationTree)
+  reset!(dst)
+  copy!(dst.root, src.root, dst.nodepool)
 end
 
-#size of subtree / count number of nodes in tree/subtree (recursive implementation)
-size(tree::DerivationTree) = count(tree)
+function copy!(dst::DerivTreeNode, src::DerivTreeNode, nodepool::MemPool{DerivTreeNode})
+  dst.rule = src.rule
+  dst.depth = src.depth
+  dst.cmd = src.cmd
+  dst.action = src.action
+  for srcchild in src.children
+    dstchild = checkout(nodepool)
+    copy!(dstchild, srcchild, nodepool)
+    push!(dst.children, dstchild)
+  end
+end
+
+"""
+Generate a random tree, start with actions in 'actions', retry 'retries' until complete
+Returns true if completed successfully, false otherwise
+"""
+function rand!(tree::DerivationTree, actions::Vector{Int64}=Int64[]; retries::Int64=5)
+  while retries > 0
+    play!(tree, actions) #calls initialize! implicitly
+    while !isterminal(tree)
+      as = actionspace(tree)
+      step!(tree, rand(as))
+    end
+    if iscomplete(tree)
+      return true
+    end
+    retries -= 1
+  end
+  return false #exceeded number of retries
+end
+
+################################
+#=
+#TODO: replace these with versions that operate on actions instead of subtrees, e.g., ACASX_SA broken...
 
 #uniformly randomly select a node from tree
 rand(tree::DerivationTree) = rand(tree.root)
@@ -430,21 +455,22 @@ function rand!(tree::DerivationTree, startnode::DerivTreeNode, retries::Int64=5)
   return false
 end
 
-function copy!(dst::DerivationTree, src::DerivationTree)
-  reset!(dst)
-  copy!(dst.root, src.root, dst.nodepool)
+#I don't think these are needed anymore
+
+count(tree::DerivationTree) = count(tree.root)
+count(node::DerivTreeNode) = count(x -> true, node)
+count(f::Function, tree::DerivationTree) = count(f::Function, tree.root)
+
+function count(f::Function, node::DerivTreeNode)
+  n = f(node)
+  for child in node.children
+    n += count(f, child)
+  end
+  return n
 end
 
-function copy!(dst::DerivTreeNode, src::DerivTreeNode, nodepool::MemPool{DerivTreeNode})
-  dst.rule = src.rule
-  dst.depth = src.depth
-  dst.cmd = src.cmd
-  dst.action = src.action
-  for srcchild in src.children
-    dstchild = checkout(nodepool)
-    copy!(dstchild, srcchild, nodepool)
-    push!(dst.children, dstchild)
-  end
-end
+#size of subtree / count number of nodes in tree/subtree (recursive implementation)
+size(tree::DerivationTree) = count(tree)
+=#
 
 end #module

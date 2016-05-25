@@ -11,7 +11,7 @@ ExprSearch is a collection of algorithms for solving grammar-guided expression d
 * GE - Grammatical Evolution (using the GrammaticalEvolution package)
 * SA - Simulated Annealing
 * MC - Monte Carlo
-* MCTS/MCTS2 - Monte Carlo Tree Search and variants
+* MCTS - Monte Carlo Tree Search
 
 ## Problems
 
