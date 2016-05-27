@@ -45,11 +45,10 @@ export psa_search, PSAESParams
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, SwapBuffers
+using RLESUtils, GitUtils, SwapBuffers, CPUTimeUtils
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
 @reexport using Observers
-using CPUTime
 using Iterators
 
 import DerivationTrees.initialize!
@@ -151,7 +150,7 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
 
   result = SAESResult()
 
-  tstart = CPUtime_us()
+  tstart = CPUtime_start()
   for j = 1:p.n_starts
     s = active(s_buffer)
     initialize!(s, problem, result) #initialize randomly
@@ -176,7 +175,7 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
       T *= p.alpha
       ###########################################
 
-      @notify_observer(p.observer, "elapsed_cpu_s", [j, i, float(CPUtime_us() - tstart) * 1e-6])
+      @notify_observer(p.observer, "elapsed_cpu_s", [j, i, CPUtime_elapsed_s(tstart)])
       @notify_observer(p.observer, "current_best", [j, i, result.fitness, string(result.expr)])
     end
     gc()

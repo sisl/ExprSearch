@@ -44,11 +44,10 @@ export PMCESParams
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils
+using RLESUtils, GitUtils, CPUTimeUtils
 @reexport using DerivationTrees
 @reexport using GrammaticalEvolution
 @reexport using Observers
-using CPUTime
 using Iterators
 
 import DerivationTrees.initialize!
@@ -150,7 +149,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   s = MCState(DerivationTree(tree_params))
   result = MCESResult(DerivationTree(tree_params))
 
-  tstart = CPUtime_us()
+  tstart = CPUtime_start()
   for i = 1:p.n_samples
     @notify_observer(p.observer, "iteration", [i])
 
@@ -160,7 +159,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
     update!(result, s)
     ###############
 
-    @notify_observer(p.observer, "elapsed_cpu_s", [i, float(CPUtime_us() - tstart) * 1e-6])
+    @notify_observer(p.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
     @notify_observer(p.observer, "current_best", [i, result.fitness, string(result.expr)])
   end
 

@@ -32,108 +32,89 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module MCTS  #ExprSearch.MCTS
+"""
+Does not search. Takes an input sequence and replays it, producing emulated logs
+"""
+module Ref
 
-export MCTSESParams, MCTSESResult, mcts_search, exprsearch, SearchParams, SearchResult
-
-include("DerivTreeMDPs.jl")
+export RefESParams, RefESResult, mc_search, exprsearch, SearchParams, SearchResult
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils
 @reexport using DerivationTrees
-@reexport using .DerivTreeMDPs
 @reexport using GrammaticalEvolution
 @reexport using Observers
-@reexport using GBMCTS
+using Iterators
 
-import .DerivTreeMDPs.get_fitness
+import DerivationTrees.initialize!
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import Base: isless, copy!
 
-type MCTSESParams <: SearchParams
+type RefESParams <: SearchParams
   #tree params
   maxsteps::Int64
 
-  #mdp params
-  max_neg_reward::Float64
-  step_reward::Float64
-
-  #mcts
-  n_iters::Int64
-  searchdepth::Int64
-  exploration_const::Float64
-  maxmod::Bool
-  q0::Float64
-  seed::Int64
-  mcts_observer::Observer
+  #Ref
+  actions::Vector{Int64}
+  n_samples::Int #output is constant, only to emulate logs
 
   observer::Observer
 end
+RefESParams(maxsteps::Int64, actions::Vector{Int64}) = RefESParams(maxsteps, actions, Observer())
 
-type MCTSESResult <: SearchResult
+type RefESResult <: SearchResult
   tree::DerivationTree
   actions::Vector{Int64}
   fitness::Float64
-  expr::Union{Symbol,Expr}
+  expr
   best_at_eval::Int64
   totalevals::Int64
 end
 
-exprsearch(p::MCTSESParams, problem::ExprProblem, userargs...) = mcts_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::RefESParams, problem::ExprProblem, userargs...) = ref_search(p, problem, userargs...)
 
-function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
+function ref_search(p::RefESParams, problem::ExprProblem, userargs...)
+  @notify_observer(p.observer, "verbose1", ["Starting Ref search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = create_grammar(problem)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
-  mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
-
   tree = DerivationTree(tree_params)
-  mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
-
-  solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, exploration_constant=p.exploration_const,
-                      maxmod=p.maxmod, rng=MersenneTwister(p.seed))
-  policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
-
-  initialize!(tree)
-  s = create_state(mdp)
 
   tstart = CPUtime_start()
-  i = 1
-  while !GBMCTS.isexplored(policy.mcts.tree, s) && i <= p.n_iters
+  fitness, expr = playsequence!(tree, problem, p.actions) #tree is modified to match expr
+  result = RefESResult(tree, p.actions, fitness, expr, 1, p.n_samples)
+  elapsed_cpu_s1 = CPUtime_elapsed_s(tstart) #elapsed time for 1 eval in seconds
+
+  #emulate logs...
+  for i = 1:p.n_samples
     @notify_observer(p.observer, "iteration", [i])
 
-    CPUtic()
-    simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
-
-    cputime = CPUtoq()
-    @notify_observer(p.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
-    @notify_observer(p.observer, "current_best", [i, -policy.best_reward, policy.best_state]) #report fitness
-    @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
-
-    i += 1
+    @notify_observer(p.observer, "elapsed_cpu_s", [i, i * elapsed_cpu_s1])
+    @notify_observer(p.observer, "current_best", [i, result.fitness, string(result.expr)])
   end
-  best_fitness = -policy.best_reward
-  expr = get_expr(policy.best_state)
-  best_actions = policy.best_state.past_actions
-  @notify_observer(p.observer, "result", [best_fitness, string(expr), policy.best_at_eval, policy.totalevals])
+
+  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), result.best_at_eval, result.totalevals])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
   @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.observer, "parameters", ["max_neg_reward", p.max_neg_reward])
-  @notify_observer(p.observer, "parameters", ["step_reward", p.step_reward])
-  @notify_observer(p.observer, "parameters", ["discount", mdp_params.discount])
-  @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
-  @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
-  @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
-  @notify_observer(p.observer, "parameters", ["maxmod", p.maxmod])
-  @notify_observer(p.observer, "parameters", ["q0", p.q0])
+  @notify_observer(p.observer, "parameters", ["actions", string(p.actions)])
+  @notify_observer(p.observer, "parameters", ["totalevals", p.n_samples])
 
-  return MCTSESResult(tree, best_actions, best_fitness, expr, policy.best_at_eval, policy.totalevals)
+  return result
+end
+
+#tree is modified
+function playsequence!(tree::DerivationTree, problem::ExprProblem, sequence::Vector{Int64})
+  play!(tree, sequence)
+  expr = get_expr(tree)
+  fitness = get_fitness(problem, expr)
+
+  return fitness, expr
 end
 
 end #module

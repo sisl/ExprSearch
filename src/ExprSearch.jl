@@ -77,6 +77,9 @@ export SA
 include("MCExprSearch.jl") #MC
 export MC
 
+include("RefExprSearch.jl") #Ref
+export Ref
+
 end #module
 
 

@@ -36,7 +36,7 @@ module GrammarCounts
 
 export rulecounts, decisioncounts
 
-using RLESUtils, SwapBuffers
+using RLESUtils, SwapBuffers, MathUtils
 using DerivationTrees
 
 typealias CountDict Dict{Symbol,Float64}
@@ -59,11 +59,11 @@ end
 
 #vector of counts, by decision
 function vec_count(grammar::Grammar, rule::OrRule, logcnts0::CountDict)
-  [count(grammar, r, logcnts0) for r in rule.values]
+  Float64[count(grammar, r, logcnts0) for r in rule.values]
 end
 
 function vec_count(grammar::Grammar, rule::RangeRule, logcnts0::CountDict)
-  ones(length(rule.range))
+  zeros(length(rule.range))::Vector{Float64}
 end
 
 #non-decisions
@@ -98,16 +98,16 @@ function initcounts(grammar::Grammar)
   logcnts
 end
 
-init(rule::OrRule) = 0
-init(rule::ExprRule) = 0
-init(rule::ReferencedRule) = 0
+init(rule::OrRule) = -Inf
+init(rule::ExprRule) = -Inf
+init(rule::ReferencedRule) = -Inf
 
 #terminals
-init(rule::RangeRule) = 1.0 #log(e * length(rule.range))
-init(rule::Terminal) = 1.0
+init(rule::RangeRule) = log(length(rule.range))
+init(rule::Terminal) = 0.0 #log(1.0)
 
 function count(grammar::Grammar, rule::OrRule, logcnts0::CountDict)
-  maximum(vec_count(grammar, rule, logcnts0)) #sum the counts --- approximate using max of the log
+  logxpy(vec_count(grammar, rule, logcnts0))::Float64 #sum the counts
 end
 
 function count(grammar::Grammar, rule::ExprRule, logcnts0::CountDict)

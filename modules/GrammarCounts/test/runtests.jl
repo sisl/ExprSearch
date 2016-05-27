@@ -65,13 +65,12 @@ function create_grammar()
     not = Expr(:call, :!, bin_vec)
 
     #equal
-    eq = vrate_eq | altdiff_eq | chi_angle_eq | psi_angle_eq | sr_eq | tds_eq | timer_eq | psid_eq | v_eq | alt_eq | abs_altdiff_eq
+    eq = vrate_eq | altdiff_eq | chi_angle_eq | psi_angle_eq | sr_eq | timer_eq | psid_eq | v_eq | alt_eq | abs_altdiff_eq
     vrate_eq = Expr(:call, :eq, vrate_feat, vrate_val) | Expr(:call, :eq, vrate_feat, vrate_feat)
     altdiff_eq = Expr(:call, :eq, altdiff_feat, altdiff_val)
     chi_angle_eq = Expr(:call, :eq, chi_angle_feat, angle_val) | Expr(:call, :eq, chi_angle_feat, chi_angle_feat)
     psi_angle_eq = Expr(:call, :eq, psi_angle_feat, psi_angle_feat)
     sr_eq = Expr(:call, :eq, sr_feat, sr_val)
-    tds_eq = Expr(:call, :eq, tds_feat, tds_val) | Expr(:call, :eq, tds_feat, tds_feat)
     timer_eq = Expr(:call, :eq, timer_feat, timer_val) | Expr(:call, :eq, timer_feat, timer_feat)
     psid_eq = Expr(:call, :eq, psid_feat, psid_val) | Expr(:call, :eq, psid_feat, psid_feat)
     v_eq = Expr(:call, :eq, v_feat, v_val) | Expr(:call, :eq, v_feat, v_feat)
@@ -79,26 +78,24 @@ function create_grammar()
     abs_altdiff_eq = Expr(:call, :eq, abs_altdiff_feat, abs_altdiff_val)
 
     #absolute equals
-    abseq = vrate_abseq | altdiff_abseq | chi_angle_abseq | psi_angle_abseq | sr_abseq | tds_abseq | timer_abseq | psid_abseq | v_abseq | alt_abseq
+    abseq = vrate_abseq | altdiff_abseq | chi_angle_abseq | psi_angle_abseq | sr_abseq | timer_abseq | psid_abseq | v_abseq | alt_abseq
     vrate_abseq = Expr(:call, :abeq, vrate_feat, vrate_val) | Expr(:call, :abeq, vrate_feat, vrate_feat)
     altdiff_abseq = Expr(:call, :abeq, altdiff_feat, altdiff_val)
     chi_angle_abseq = Expr(:call, :abeq, chi_angle_feat, angle_val) | Expr(:call, :abeq, chi_angle_feat, chi_angle_feat)
     psi_angle_abseq = Expr(:call, :abeq, psi_angle_feat, psi_angle_feat)
     sr_abseq = Expr(:call, :abeq, sr_feat, sr_val)
-    tds_abseq = Expr(:call, :abeq, tds_feat, tds_val) | Expr(:call, :abeq, tds_feat, tds_feat)
     timer_abseq = Expr(:call, :abeq, timer_feat, timer_val) | Expr(:call, :abeq, timer_feat, timer_feat)
     psid_abseq = Expr(:call, :abeq, psid_feat, psid_val) | Expr(:call, :abeq, psid_feat, psid_feat)
     v_abseq = Expr(:call, :abeq, v_feat, v_val) | Expr(:call, :abeq, v_feat, v_feat)
     alt_abseq = Expr(:call, :abeq, alt_feat, alt_val) | Expr(:call, :abeq, alt_feat, alt_feat)
 
     #less than
-    lt = vrate_lt | altdiff_lt  | chi_angle_lt | psi_angle_lt | sr_lt | tds_lt | timer_lt | psid_lt | v_lt | alt_lt | abs_altdiff_lt
+    lt = vrate_lt | altdiff_lt  | chi_angle_lt | psi_angle_lt | sr_lt | timer_lt | psid_lt | v_lt | alt_lt | abs_altdiff_lt
     vrate_lt = Expr(:call, :lt, vrate_feat, vrate_val) | Expr(:call, :lt, vrate_feat, vrate_feat)
     altdiff_lt = Expr(:call, :lt, altdiff_feat, altdiff_val)
     chi_angle_lt = Expr(:call, :lt, chi_angle_feat, angle_val) | Expr(:call, :lt, chi_angle_feat, chi_angle_feat)
     psi_angle_lt = Expr(:call, :lt, psi_angle_feat, psi_angle_feat)
     sr_lt = Expr(:call, :lt, sr_feat, sr_val)
-    tds_lt = Expr(:call, :lt, tds_feat, tds_val) | Expr(:call, :lt, tds_feat, tds_feat)
     timer_lt = Expr(:call, :lt, timer_feat, timer_val) | Expr(:call, :lt, timer_feat, timer_feat)
     psid_lt = Expr(:call, :lt, psid_feat, psid_val) | Expr(:call, :lt, psid_feat, psid_feat)
     v_lt = Expr(:call, :lt, v_feat, v_val) | Expr(:call, :lt, v_feat, v_feat)
@@ -106,26 +103,24 @@ function create_grammar()
     abs_altdiff_lt = Expr(:call, :lt, abs_altdiff_feat, abs_altdiff_val)
 
     #absolute less than
-    abslt = vrate_abslt | altdiff_abslt  | chi_angle_abslt | psi_angle_abslt | sr_abslt | tds_abslt | timer_abslt | psid_abslt | v_abslt | alt_abslt
+    abslt = vrate_abslt | altdiff_abslt  | chi_angle_abslt | psi_angle_abslt | sr_abslt | timer_abslt | psid_abslt | v_abslt | alt_abslt
     vrate_abslt = Expr(:call, :ablt, vrate_feat, vrate_val) | Expr(:call, :ablt, vrate_feat, vrate_feat)
     altdiff_abslt = Expr(:call, :ablt, altdiff_feat, altdiff_val)
     chi_angle_abslt = Expr(:call, :ablt, chi_angle_feat, angle_val) | Expr(:call, :ablt, chi_angle_feat, chi_angle_feat)
     psi_angle_abslt = Expr(:call, :ablt, psi_angle_feat, psi_angle_feat)
     sr_abslt = Expr(:call, :ablt, sr_feat, sr_val)
-    tds_abslt = Expr(:call, :ablt, tds_feat, tds_val) | Expr(:call, :ablt, tds_feat, tds_feat)
     timer_abslt = Expr(:call, :ablt, timer_feat, timer_val) | Expr(:call, :ablt, timer_feat, timer_feat)
     psid_abslt = Expr(:call, :ablt, psid_feat, psid_val) | Expr(:call, :ablt, psid_feat, psid_feat)
     v_abslt = Expr(:call, :ablt, v_feat, v_val) | Expr(:call, :ablt, v_feat, v_feat)
     alt_abslt = Expr(:call, :ablt, alt_feat, alt_val) | Expr(:call, :ablt, alt_feat, alt_feat)
 
     #less then or equal
-    lte = vrate_lte | altdiff_lte | chi_angle_lte | psi_angle_lte | sr_lte | tds_lte | timer_lte | psid_lte | v_lte | alt_lte | abs_altdiff_lte
+    lte = vrate_lte | altdiff_lte | chi_angle_lte | psi_angle_lte | sr_lte | timer_lte | psid_lte | v_lte | alt_lte | abs_altdiff_lte
     vrate_lte = Expr(:call, :lte, vrate_feat, vrate_val) | Expr(:call, :lte, vrate_feat, vrate_feat)
     altdiff_lte = Expr(:call, :lte, altdiff_feat, altdiff_val)
     chi_angle_lte = Expr(:call, :lte, chi_angle_feat, angle_val) | Expr(:call, :lte, chi_angle_feat, chi_angle_feat)
     psi_angle_lte = Expr(:call, :lte, psi_angle_feat, psi_angle_feat)
     sr_lte = Expr(:call, :lte, sr_feat, sr_val)
-    tds_lte = Expr(:call, :lte, tds_feat, tds_val) | Expr(:call, :lte, tds_feat, tds_feat)
     timer_lte = Expr(:call, :lte, timer_feat, timer_val) | Expr(:call, :lte, timer_feat, timer_feat)
     psid_lte = Expr(:call, :lte, psid_feat, psid_val) | Expr(:call, :lte, psid_feat, psid_feat)
     v_lte = Expr(:call, :lte, v_feat, v_val) | Expr(:call, :lte, v_feat, v_feat)
@@ -133,13 +128,12 @@ function create_grammar()
     abs_altdiff_lte = Expr(:call, :lte, abs_altdiff_feat, abs_altdiff_val)
 
     #abs less then or equal
-    abslte = vrate_abslte | altdiff_abslte | chi_angle_abslte | psi_angle_abslte | sr_abslte | tds_abslte | timer_abslte | psid_abslte | v_abslte | alt_abslte
+    abslte = vrate_abslte | altdiff_abslte | chi_angle_abslte | psi_angle_abslte | sr_abslte | timer_abslte | psid_abslte | v_abslte | alt_abslte
     vrate_abslte = Expr(:call, :able, vrate_feat, vrate_val) | Expr(:call, :able, vrate_feat, vrate_feat)
     altdiff_abslte = Expr(:call, :able, altdiff_feat, altdiff_val)
     chi_angle_abslte = Expr(:call, :able, chi_angle_feat, angle_val) | Expr(:call, :able, chi_angle_feat, chi_angle_feat)
     psi_angle_abslte = Expr(:call, :able, psi_angle_feat, psi_angle_feat)
     sr_abslte = Expr(:call, :able, sr_feat, sr_val)
-    tds_abslte = Expr(:call, :able, tds_feat, tds_val) | Expr(:call, :able, tds_feat, tds_feat)
     timer_abslte = Expr(:call, :able, timer_feat, timer_val) | Expr(:call, :able, timer_feat, timer_feat)
     psid_abslte = Expr(:call, :able, psid_feat, psid_val) | Expr(:call, :able, psid_feat, psid_feat)
     v_abslte = Expr(:call, :able, v_feat, v_val) | Expr(:call, :able, v_feat, v_feat)
@@ -152,61 +146,55 @@ function create_grammar()
     psid_sign = Expr(:call, :sn, psid_feat, psid_feat)
 
     #difference is equal
-    diff_eq = vrate_diff_eq | chi_angle_diff_eq | psi_angle_diff_eq | tds_diff_eq | timer_diff_eq | psid_diff_eq | v_diff_eq
+    diff_eq = vrate_diff_eq | chi_angle_diff_eq | psi_angle_diff_eq | timer_diff_eq | psid_diff_eq | v_diff_eq
     vrate_diff_eq = Expr(:call, :dfeq, vrate_feat, vrate_feat, vrate_val)
     chi_angle_diff_eq = Expr(:call, :dfeq, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_diff_eq = Expr(:call, :dfeq, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_diff_eq = Expr(:call, :dfeq, tds_feat, tds_feat, tds_val)
     timer_diff_eq = Expr(:call, :dfeq, timer_feat, timer_feat, timer_val)
     psid_diff_eq = Expr(:call, :dfeq, psid_feat, psid_feat, psid_val)
     v_diff_eq = Expr(:call, :dfeq, v_feat, v_feat, v_val)
 
     #abs difference is equal
-    absdiff_eq = vrate_absdiff_eq | chi_angle_absdiff_eq | psi_angle_absdiff_eq | tds_absdiff_eq | timer_absdiff_eq | psid_absdiff_eq | v_absdiff_eq
+    absdiff_eq = vrate_absdiff_eq | chi_angle_absdiff_eq | psi_angle_absdiff_eq | timer_absdiff_eq | psid_absdiff_eq | v_absdiff_eq
     vrate_absdiff_eq = Expr(:call, :adfeq, vrate_feat, vrate_feat, vrate_val)
     chi_angle_absdiff_eq = Expr(:call, :adfeq, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_absdiff_eq = Expr(:call, :adfeq, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_absdiff_eq = Expr(:call, :adfeq, tds_feat, tds_feat, tds_val)
     timer_absdiff_eq = Expr(:call, :adfeq, timer_feat, timer_feat, timer_val)
     psid_absdiff_eq = Expr(:call, :adfeq, psid_feat, psid_feat, psid_val)
     v_absdiff_eq = Expr(:call, :adfeq, v_feat, v_feat, v_val)
 
     #difference is less than some value.  Values may not be appropriate after taking difference
-    diff_lt = vrate_diff_lt | chi_angle_diff_lt | psi_angle_diff_lt | tds_diff_lt | timer_diff_lt | psid_diff_lt | v_diff_lt
+    diff_lt = vrate_diff_lt | chi_angle_diff_lt | psi_angle_diff_lt | timer_diff_lt | psid_diff_lt | v_diff_lt
     vrate_diff_lt = Expr(:call, :dflt, vrate_feat, vrate_feat, vrate_val)
     chi_angle_diff_lt = Expr(:call, :dflt, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_diff_lt = Expr(:call, :dflt, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_diff_lt = Expr(:call, :dflt, tds_feat, tds_feat, tds_val)
     timer_diff_lt = Expr(:call, :dflt, timer_feat, timer_feat, timer_val)
     psid_diff_lt = Expr(:call, :dflt, psid_feat, psid_feat, psid_val)
     v_diff_lt = Expr(:call, :dflt, v_feat, v_feat, v_val)
 
     #abs difference is less than some value.  Values may not be appropriate after taking difference
-    absdiff_lt = vrate_absdiff_lt | chi_angle_absdiff_lt | psi_angle_absdiff_lt | tds_absdiff_lt | timer_absdiff_lt | psid_absdiff_lt | v_absdiff_lt
+    absdiff_lt = vrate_absdiff_lt | chi_angle_absdiff_lt | psi_angle_absdiff_lt | timer_absdiff_lt | psid_absdiff_lt | v_absdiff_lt
     vrate_absdiff_lt = Expr(:call, :adflt, vrate_feat, vrate_feat, vrate_val)
     chi_angle_absdiff_lt = Expr(:call, :adflt, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_absdiff_lt = Expr(:call, :adflt, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_absdiff_lt = Expr(:call, :adflt, tds_feat, tds_feat, tds_val)
     timer_absdiff_lt = Expr(:call, :adflt, timer_feat, timer_feat, timer_val)
     psid_absdiff_lt = Expr(:call, :adflt, psid_feat, psid_feat, psid_val)
     v_absdiff_lt = Expr(:call, :adflt, v_feat, v_feat, v_val)
 
     #difference is less than or equal to some value.  Values may not be appropriate after taking difference
-    diff_lte = vrate_diff_lte | chi_angle_diff_lte | psi_angle_diff_lte | tds_diff_lte | timer_diff_lte | psid_diff_lte | v_diff_lte
+    diff_lte = vrate_diff_lte | chi_angle_diff_lte | psi_angle_diff_lte | timer_diff_lte | psid_diff_lte | v_diff_lte
     vrate_diff_lte = Expr(:call, :dfle, vrate_feat, vrate_feat, vrate_val)
     chi_angle_diff_lte = Expr(:call, :dfle, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_diff_lte = Expr(:call, :dfle, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_diff_lte = Expr(:call, :dfle, tds_feat, tds_feat, tds_val)
     timer_diff_lte = Expr(:call, :dfle, timer_feat, timer_feat, timer_val)
     psid_diff_lte = Expr(:call, :dfle, psid_feat, psid_feat, psid_val)
     v_diff_lte = Expr(:call, :dfle, v_feat, v_feat, v_val)
 
     #absolute difference is less than or equal to some value.
-    absdiff_lte = vrate_absdiff_lte | chi_angle_absdiff_lte | psi_angle_absdiff_lte | tds_absdiff_lte | timer_absdiff_lte | psid_absdiff_lte | v_absdiff_lte
+    absdiff_lte = vrate_absdiff_lte | chi_angle_absdiff_lte | psi_angle_absdiff_lte | timer_absdiff_lte | psid_absdiff_lte | v_absdiff_lte
     vrate_absdiff_lte = Expr(:call, :adfle, vrate_feat, vrate_feat, vrate_val)
     chi_angle_absdiff_lte = Expr(:call, :adfle, chi_angle_feat, chi_angle_feat, angle_val)
     psi_angle_absdiff_lte = Expr(:call, :adfle, psi_angle_feat, psi_angle_feat, angle_val)
-    tds_absdiff_lte = Expr(:call, :adfle, tds_feat, tds_feat, tds_val)
     timer_absdiff_lte = Expr(:call, :adfle, timer_feat, timer_feat, timer_val)
     psid_absdiff_lte = Expr(:call, :adfle, psid_feat, psid_feat, psid_val)
     v_absdiff_lte = Expr(:call, :adfle, v_feat, v_feat, v_val)
@@ -220,7 +208,6 @@ function create_grammar()
     psi_angle_feat = Expr(:ref, :D, :(:), psi_angle_feat_id)
     chi_angle_feat = Expr(:ref, :D, :(:), chi_angle_feat_id)
     sr_feat = Expr(:ref, :D, :(:), sr_feat_id)
-    tds_feat = Expr(:ref, :D, :(:), tds_feat_id)
     timer_feat = Expr(:ref, :D, :(:), timer_feat_id)
     psid_feat = Expr(:ref, :D, :(:), psid_feat_id)
     v_feat = Expr(:ref, :D, :(:), v_feat_id)
@@ -235,7 +222,6 @@ function create_grammar()
     psi_angle_feat_id = 4 | 41
     chi_angle_feat_id = 6 | 43
     sr_feat_id = 5 | 42 | 77
-    tds_feat_id = 29 | 66
     timer_feat_id = 33 | 70
     psid_feat_id = 35 | 72
     v_feat_id = 36 | 73
@@ -247,7 +233,6 @@ function create_grammar()
     abs_altdiff_val = 0 | 1 | 5 | 10 | 25 | 50 | 100 | 250 | 500 | 1000 | 1500 | 2000
     angle_val = -180 | -135 | -90 | -45 | 0 | 45 | 90 | 135 | 180
     sr_val = 30000 | 25000 | 20000 | 15000 | 10000 | 7500 | 5000 | 2500 | 1000 | 500 | 250 | 100 | 50 | 25 | 10 | 1 | 0
-    tds_val = 0 | 50 | 100 | 250 | 400 | 1000 | 1200
     timer_val = 0:5
     psid_val = -10:10
     v_val = 50 | 75 | 100 | 150 | 200 | 250 | 300 | 350 | 400 | 450 | 500
