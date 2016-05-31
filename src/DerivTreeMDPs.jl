@@ -218,6 +218,14 @@ function POMDPs.rand!(rng::AbstractRNG, a::DerivTreeAction, action_space::DerivT
   return a
 end
 
+#"""
+#Returns a Vector{Float64} that gives the relative sizes for each available decision
+#"""
+#function POMDPs.pathhint(s::DerivTreeState)
+#  rule = openrule(s.mdp.tree)
+#  rule.symbol
+#end
+
 #equate all fields
 function ==(s1::DerivTreeState, s2::DerivTreeState)
   s1.past_actions == s2.past_actions
@@ -262,5 +270,6 @@ function get_expr(state::DerivTreeState)
   sync!(state) #sync to state
   return get_expr(state.mdp.tree)
 end
+
 
 end #module

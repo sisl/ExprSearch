@@ -39,7 +39,7 @@ Warning: not all rules are supported
 module DerivationTrees
 
 export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, maxlength
-export initialize!, step!, isterminal, actionspace, iscomplete, play!
+export initialize!, step!, isterminal, actionspace, iscomplete, play!, openrule
 export IncompleteException
 
 using RLESUtils, Observers, MemPools
@@ -90,6 +90,14 @@ end
 include("formatter.jl")
 
 immutable IncompleteException <: Exception end
+
+function openrule(tree::DerivationTree)
+  if isempty(tree.opennodes)
+    return Nullable{Rule}()
+  end
+  node = top(tree.opennodes)
+  return node.rule == nothing ? Nullable{Rule}() : Nullable{Rule}(node.rule)
+end
 
 #reset tree, children are deallocated
 function reset!(tree::DerivationTree)

@@ -104,10 +104,8 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
   while !GBMCTS.isexplored(policy.mcts.tree, s) && i <= p.n_iters
     @notify_observer(p.observer, "iteration", [i])
 
-    CPUtic()
     simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
-    cputime = CPUtoq()
     @notify_observer(p.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
     @notify_observer(p.observer, "current_best", [i, -policy.best_reward, policy.best_state]) #report fitness
     @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
