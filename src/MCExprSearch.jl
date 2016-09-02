@@ -121,8 +121,9 @@ function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
 
   result = minimum(results) #best fitness
   totalevals = sum(map(r -> r.totalevals, results))
-
-  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), totalevals])
+  
+  @notify_observer(p.observer, "result", [result.fitness, string(result.expr),
+     0, totalevals])
 
   #meta info
   computetime_s = toq()
@@ -163,7 +164,8 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
     @notify_observer(p.observer, "current_best", [i, result.fitness, string(result.expr)])
   end
 
-  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), result.best_at_eval, result.totalevals])
+  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), 
+    result.best_at_eval, result.totalevals])
 
   #meta info
   @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
