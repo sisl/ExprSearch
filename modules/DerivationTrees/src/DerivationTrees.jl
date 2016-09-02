@@ -164,7 +164,7 @@ function step!(tree::DerivationTree, a::Int64)
   end
   push!(tree.actions, a)
   node = pop!(opennodes)
-  process!(tree, node, node.rule, a)
+  expand_node!(tree, node, node.rule, a)
   process_non_decisions!(tree)
 end
 
@@ -178,14 +178,14 @@ function process_non_decisions!(tree::DerivationTree)
   opennodes = tree.opennodes
   while !isempty(opennodes) && !isa(top(opennodes).rule, DecisionRule)
     node = pop!(opennodes)
-    process!(tree, node, node.rule)
+    expand_node!(tree, node, node.rule)
   end
 end
 
 # Open nodes are allocated (and put on the stack), but not populated until they are processed
 ###########################
-### process! nonterminals
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
+### expand_node! nonterminals
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
   node.action = a
   node.cmd = rule.name
   idx = ((a - 1) % length(rule.values)) + 1 #1-indexed
@@ -196,14 +196,14 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::In
   push!(tree.opennodes, child) #TODO: Instead of pushing to opennodes, return vec of children to support alternative processing (dfs vs bfs), change type of opennodes (vector?), wrap with function to add and get
 end
 
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
   #don't create a child node for reference rules, shortcut through
   #node.cmd = rule.name
   node.rule = tree.params.grammar.rules[rule.symbol]
   push!(tree.opennodes, node)
 end
 
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule, a::Int64)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule, a::Int64)
   node.cmd = rule.name
   reps = ((a - 1) % length(rule.range)) + rule.range.start
   for i = 1:reps
@@ -219,7 +219,7 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule,
 end
 
 #= not tested...
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::AndRule)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::AndRule)
   for subrule in rule.values
     child = DerivTreeNode(rule.name, subrule, node.depth + 1)
     push!(node.children, child)
@@ -228,7 +228,7 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::AndRule)
 end
 =#
 
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
   node.cmd = rule.name
   for arg in rule.args
     if isa(arg, Rule)
@@ -246,16 +246,16 @@ end
 
 ###########################
 ### Terminals
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::RangeRule, a::Int64)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RangeRule, a::Int64)
   node.action = a
   #node.cmd = string(get_expr(node, rule))
 end
 
-function process!(tree::DerivationTree, node::DerivTreeNode, rule::Terminal)
+function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::Terminal)
   #node.cmd = string(rule.value)
 end
 
-#function process!(tree::DerivationTree, node::DerivTreeNode, x)
+#function expand_node!(tree::DerivationTree, node::DerivTreeNode, x)
 #  node.cmd = string(x)
 #end
 
