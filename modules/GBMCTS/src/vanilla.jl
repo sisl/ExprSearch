@@ -149,11 +149,7 @@ function POMDPs.simulate(policy::MCTSPolicy, state::State, depth::Int64)
   for i = 1:na
     if !isexplored(tree, snode.nextstates[i])
       #selection criteria
-      val = if false #pathhintmod
-        snode.Q[i] + exploration_constant * real(sqrt(complex(log(sum(snode.n)) / snode.n[i]))) + w_pathhint * pathhint(state)
-      else
-        snode.Q[i] + exploration_constant * real(sqrt(complex(log(sum(snode.n)) / snode.n[i])))
-      end
+      val =  snode.Q[i] + exploration_constant * real(sqrt(complex(log(sum(snode.n)) / snode.n[i])))
 
       if best_i < 0 || val > best_val #accept the first unexplored one or accept if multiple ties for best
         best_val = val
@@ -180,7 +176,7 @@ function POMDPs.simulate(policy::MCTSPolicy, state::State, depth::Int64)
   q = r + discount_factor * simulate(policy, sp, depth - 1)
   snode.n[i] += 1 # increase number of node visits by one
 
-  if policy.mcts.maxmod
+  if policy.mcts.maxmod #maxmod
     snode.Q[i] = max(snode.Q[i], q)
   else
     snode.Q[i] += ((q - snode.Q[i]) / (snode.n[i])) # moving average of Q value

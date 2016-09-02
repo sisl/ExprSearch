@@ -41,7 +41,7 @@ Usage: using ExprSearch.MC; result = exprsearch(p, problem)
 """
 module ExprSearch
 
-export ExprProblem, create_grammar, get_fitness
+export ExprProblem, get_grammar, get_fitness
 export SearchParams, SearchResult, exprsearch
 
 const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
@@ -54,8 +54,8 @@ abstract ExprProblem
 abstract SearchParams
 abstract SearchResult
 
-create_grammar(problem::ExprProblem) = error("Grammar not defined")
-get_fitness(problem::ExprProblem, expr) = error("Fitness not defined")
+get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
+get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not defined")
 
 exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
 

@@ -52,7 +52,7 @@ using RLESUtils, GitUtils, SwapBuffers, CPUTimeUtils
 using Iterators
 
 import DerivationTrees.initialize!
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: isless, copy!
 
 type SAESParams <: SearchParams
@@ -143,7 +143,7 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting SA search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
-  grammar = create_grammar(problem)
+  grammar = get_grammar(problem)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
   s_buffer = SwapBuffer(SAState(DerivationTree(tree_params)),
                         SAState(DerivationTree(tree_params)))
@@ -198,7 +198,7 @@ end
 
 #initialize to random state
 function initialize!(s::SAState, problem::ExprProblem, retries::Int64=typemax(Int64))
-  rand!(s.tree, retries) #random tree
+  rand!(s.tree; retries=retries) #random tree
   s.expr = get_expr(s.tree)
   s.fitness = get_fitness(problem, s.expr)
 end
@@ -261,7 +261,7 @@ function accept_prob(problem::ExprProblem, maxsteps::Int64, P1::Float64, N::Int6
   sum_uphill = 0.0
   n_uphill = 0
 
-  grammar = create_grammar(problem)
+  grammar = get_grammar(problem)
   tree_params = DerivTreeParams(grammar, maxsteps)
   tree = DerivationTree(tree_params)
 

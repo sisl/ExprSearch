@@ -48,7 +48,7 @@ using RLESUtils, GitUtils, CPUTimeUtils
 @reexport using GBMCTS
 
 import .DerivTreeMDPs.get_fitness
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 
 type MCTSESParams <: SearchParams
   #tree params
@@ -85,7 +85,7 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
-  grammar = create_grammar(problem)
+  grammar = get_grammar(problem)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
   mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
 

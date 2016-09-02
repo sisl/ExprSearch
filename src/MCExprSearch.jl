@@ -51,7 +51,7 @@ using RLESUtils, GitUtils, CPUTimeUtils
 using Iterators
 
 import DerivationTrees.initialize!
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: isless, copy!
 
 type MCESParams <: SearchParams
@@ -143,7 +143,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting MC search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
-  grammar = create_grammar(problem)
+  grammar = get_grammar(problem)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
 
   s = MCState(DerivationTree(tree_params))

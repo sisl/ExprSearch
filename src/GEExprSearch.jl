@@ -44,7 +44,7 @@ using RLESUtils, GitUtils
 @reexport using Observers
 using CPUTime
 
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, create_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 
 type GEESParams <: SearchParams
   #GrammaticalEvolution params
@@ -77,7 +77,7 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting GE search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
-  grammar = create_grammar(problem)
+  grammar = get_grammar(problem)
 
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = realmax(Float64)

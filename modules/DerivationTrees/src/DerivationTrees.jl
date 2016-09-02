@@ -39,7 +39,7 @@ Warning: not all rules are supported
 module DerivationTrees
 
 export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, maxlength
-export initialize!, step!, isterminal, actionspace, iscomplete, play!, openrule
+export initialize!, step!, isterminal, actionspace, iscomplete, play!, nextopennode
 export IncompleteException
 
 using RLESUtils, Observers, MemPools
@@ -80,57 +80,75 @@ type DerivationTree
   observer::Observer
 end
 
-function DerivationTree(p::DerivTreeParams, nodepool::MemPool=MemPool(DerivTreeNode,200,400); observer::Observer=Observer())
+function DerivationTree(p::DerivTreeParams, nodepool::MemPool=MemPool(DerivTreeNode,200,400);
+    observer::Observer=Observer())
   root = DerivTreeNode(p.grammar.rules[:start])
   maxactions = maxlength(p.grammar)
-  tree = DerivationTree(p, root, Stack(DerivTreeNode, STACKSIZE), Int64[], maxactions, nodepool, observer)
-  return tree
+  tree = DerivationTree(p, root, Stack(DerivTreeNode, STACKSIZE), Int64[], maxactions, 
+    nodepool, observer)
+  tree
 end
 
 include("formatter.jl")
 
 immutable IncompleteException <: Exception end
 
-function openrule(tree::DerivationTree)
+function nextopennode(tree::DerivationTree)
   if isempty(tree.opennodes)
     return Nullable{Rule}()
   end
   node = top(tree.opennodes)
-  return node.rule == nothing ? Nullable{Rule}() : Nullable{Rule}(node.rule)
+  nullable_rule =  Nullable{Rule}(node.rule) 
+  nullable_rule
 end
 
-#reset tree, children are deallocated
+#reset tree, children are deallocated, root is kept
 function reset!(tree::DerivationTree)
   empty!(tree.opennodes)
   empty!(tree.actions)
-  return2pool(tree.nodepool, tree.root.children)
+  rm_node(tree, tree.root.children)
   reset!(tree.root)
   tree.root.rule = tree.params.grammar.rules[:start]
+  tree
 end
 
 #reset node, children are emptied
-#can use kwargs as shorthand to set variables
 function reset!(node::DerivTreeNode)
   node.rule = nothing
   node.depth = 0
   node.cmd = ""
   node.action = -1
   empty!(node.children)
+  node
+end
+
+function newnode(tree::DerivationTree)
+    node = checkout(tree.nodepool)
+    reset!(node)
+    node
+end
+
+function rm_node(tree::DerivationTree, nodes::Vector{DerivTreeNode})
+    return_to_pool(tree.nodepool, nodes)
+    nothing
 end
 
 #returns children to pool before emptying
-function return2pool(nodepool::MemPool, nodes::Vector{DerivTreeNode})
+function return_to_pool(nodepool::MemPool, nodes::Vector{DerivTreeNode})
   for node in nodes
-    return2pool(nodepool, node)
+    return_to_pool(nodepool, node)
   end
   empty!(nodes)
 end
 
-function return2pool(nodepool::MemPool, node::DerivTreeNode)
-  return2pool(nodepool, node.children) #return children first
+function return_to_pool(nodepool::MemPool, node::DerivTreeNode)
+  return_to_pool(nodepool, node.children) #return children first
   checkin(nodepool, node) #return self
 end
 
+###################################
+# TODO: Split these functions into DerivationTrees and LinearDFSDerivTree
+# Move these to LinearDFSDerivTree
 function initialize!(tree::DerivationTree)
   @notify_observer(tree.observer, "verbose1", ["initialize! called"])
   reset!(tree)
@@ -164,18 +182,18 @@ function process_non_decisions!(tree::DerivationTree)
   end
 end
 
+# Open nodes are allocated (and put on the stack), but not populated until they are processed
 ###########################
 ### process! nonterminals
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
   node.action = a
   node.cmd = rule.name
-  idx = ((a - 1) % length(rule.values)) + 1
-  child = checkout(tree.nodepool)
-  reset!(child)
+  idx = ((a - 1) % length(rule.values)) + 1 #1-indexed
+  child = newnode(tree)
   child.rule = rule.values[idx]
   child.depth = node.depth + 1
   push!(node.children, child)
-  push!(tree.opennodes, child)
+  push!(tree.opennodes, child) #TODO: Instead of pushing to opennodes, return vec of children to support alternative processing (dfs vs bfs), change type of opennodes (vector?), wrap with function to add and get
 end
 
 function process!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
@@ -189,8 +207,7 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule,
   node.cmd = rule.name
   reps = ((a - 1) % length(rule.range)) + rule.range.start
   for i = 1:reps
-    child = checkout(tree.nodepool)
-    reset!(child)
+    child = newnode(tree)
     child.rule = rule.value
     child.depth = node.depth + 1
     push!(node.children, child)
@@ -215,8 +232,7 @@ function process!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
   node.cmd = rule.name
   for arg in rule.args
     if isa(arg, Rule)
-      child = checkout(tree.nodepool)
-      reset!(child)
+      child = newnode(tree)
       child.rule = arg
       child.depth = node.depth + 1
       push!(node.children, child)
@@ -439,7 +455,7 @@ end
 #drop subtree starting at given node and init derivation starting from here
 function initialize!(tree::DerivationTree, startnode::DerivTreeNode)
   tree.nsteps -= count(x -> isa(x.rule, DecisionRule), startnode) #undo subtree effect on nsteps
-  return2pool(tree.nodepool, startnode.children) #discard old subtree
+  return_to_pool(tree.nodepool, startnode.children) #discard old subtree
   empty!(tree.opennodes)
 
   push!(tree.opennodes, startnode)
