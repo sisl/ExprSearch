@@ -113,7 +113,7 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   tree = DerivationTree(tree_params)
   play!(tree, ind)
 
-  @assert expr != get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
+  @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
 
   @notify_observer(p.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
