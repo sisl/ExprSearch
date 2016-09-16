@@ -34,8 +34,7 @@
 
 """
 Monte Carlo search by drawing uniform samples from the root of the grammar.
-Returns the sample with the best result.  On large datasets earlystop can be an effective
-time-saver by not evaluating the fitness function over the entire dataset.
+Returns the sample with the best result.  
 """
 module MC
 
@@ -60,13 +59,10 @@ type MCESParams <: SearchParams
 
   #MC
   n_samples::Int64 #samples
-  earlystop::Bool #enable early stop
-  earlystop_div::Int64 #interval to evaluate early stop criteria
 
   observer::Observer
 end
-MCESParams(maxsteps::Int64, n_samples::Int64, earlystop::Bool=true, earlystop_div::Int64=10) = MCESParams(maxsteps, n_samples, earlystop, earlystop_div, Observer())
-MCESParams(maxsteps::Int64, n_samples::Int64, observer::Observer=Observer()) = MCESParams(maxsteps, n_samples, true, 10, observer)
+MCESParams(maxsteps::Int64, n_samples::Int64) = MCESParams(maxsteps, n_samples, Observer())
 
 type PMCESParams <: SearchParams
   n_threads::Int64
@@ -133,8 +129,6 @@ function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
   @notify_observer(p.observer, "parameters", ["n_samples", p.mc_params.n_samples])
-  @notify_observer(p.observer, "parameters", ["earlystop", p.mc_params.earlystop])
-  @notify_observer(p.observer, "parameters", ["earlystop_div", p.mc_params.earlystop_div])
   @notify_observer(p.observer, "parameters", ["n_threads", p.n_threads])
 
   return result
@@ -156,7 +150,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
 
     ###############
     #MC algorithm
-    sample!(s, problem, result.fitness, realmax(Float64), p.earlystop, p.earlystop_div)
+    sample!(s, problem)
     update!(result, s)
     ###############
 
@@ -173,22 +167,15 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
   @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
   @notify_observer(p.observer, "parameters", ["n_samples", p.n_samples])
-  @notify_observer(p.observer, "parameters", ["earlystop", p.earlystop])
-  @notify_observer(p.observer, "parameters", ["earlystop_div", p.earlystop_div])
 
   return result
 end
 
 #initialize to random state
-function sample!(s::MCState, problem::ExprProblem, bestfitness::Float64, defaultval::Float64,
-                 earlystop::Bool, earlystop_div::Int64, retries::Int64=typemax(Int64))
+function sample!(s::MCState, problem::ExprProblem, retries::Int64=typemax(Int64))
   rand!(s.tree, retries=retries) #sample uniformly
   s.expr = get_expr(s.tree)
-  s.fitness = if earlystop
-    get_fitness(problem, s.expr, bestfitness, defaultval, earlystop_div)
-  else
-    get_fitness(problem, s.expr)
-  end
+  s.fitness = get_fitness(problem, s.expr)
   s
 end
 

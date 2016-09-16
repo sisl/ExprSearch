@@ -38,7 +38,7 @@ export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils
+using RLESUtils, GitUtils, CPUTimeUtils
 @reexport using GrammaticalEvolution
 @reexport using DerivationTrees #for pretty strings
 @reexport using Observers
@@ -51,7 +51,9 @@ type GEESParams <: SearchParams
   genome_size::Int64
   pop_size::Int64
   maxwraps::Int64
-  top_percent::Float64
+  top_keep::Float64
+  top_seed::Float64
+  rand_frac::Float64
   prob_mutation::Float64
   mutation_rate::Float64
   default_code
@@ -82,18 +84,20 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   pop = ExamplePopulation(p.pop_size, p.genome_size)
   fitness = realmax(Float64)
   iter = 1
+  tstart = CPUtime_start()
   while iter <= p.max_iters
     CPUtic()
-    pop = generate(grammar, pop, p.top_percent, p.prob_mutation, p.mutation_rate, p, problem::ExprProblem, userargs...)
+    pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, p.mutation_rate, p, 
+        problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = pop[1].code
-    cputime = CPUtoq()
-    @notify_observer(p.observer, "iteration_time", Any[iter, cputime])
+    nevals = iter * p.pop_size
+    @notify_observer(p.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
     @notify_observer(p.observer, "fitness", Any[iter, fitness])
     @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
     @notify_observer(p.observer, "code", Any[iter, string(code)])
     @notify_observer(p.observer, "population", Any[iter, pop])
-    @notify_observer(p.observer, "current_best", [iter, fitness, code])
+    @notify_observer(p.observer, "current_best", [nevals, fitness, code])
     iter += 1
   end
   @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
@@ -108,7 +112,10 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   tree_params = DerivTreeParams(grammar, length(ind.genome))
   tree = DerivationTree(tree_params)
   play!(tree, ind)
-  @assert expr == get_expr(tree)
+
+  if expr != get_expr(tree) 
+      warn("expression check failed! expr=$expr, get_expr(tree)=$(get_expr(tree))")
+  end
 
   @notify_observer(p.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
@@ -119,7 +126,9 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "parameters", ["genome_size", p.genome_size])
   @notify_observer(p.observer, "parameters", ["pop_size", p.pop_size])
   @notify_observer(p.observer, "parameters", ["maxwraps", p.maxwraps])
-  @notify_observer(p.observer, "parameters", ["top_percent", p.top_percent])
+  @notify_observer(p.observer, "parameters", ["top_keep", p.top_keep])
+  @notify_observer(p.observer, "parameters", ["top_seed", p.top_seed])
+  @notify_observer(p.observer, "parameters", ["rand_frac", p.rand_frac])
   @notify_observer(p.observer, "parameters", ["prob_mutation", p.prob_mutation])
   @notify_observer(p.observer, "parameters", ["mutation_rate", p.mutation_rate])
   @notify_observer(p.observer, "parameters", ["default_code", string(p.default_code)])
