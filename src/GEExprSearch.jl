@@ -59,8 +59,6 @@ type GEESParams <: SearchParams
   default_code
   max_iters::Int64
 
-  ge_observer::Observer
-
   observer::Observer
 end
 
@@ -87,8 +85,8 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   tstart = CPUtime_start()
   while iter <= p.max_iters
     CPUtic()
-    pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, p.mutation_rate, p, 
-        problem::ExprProblem, userargs...)
+    pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
+        p.mutation_rate, p, problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = pop[1].code
     nevals = iter * p.pop_size
