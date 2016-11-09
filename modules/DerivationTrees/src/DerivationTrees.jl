@@ -39,7 +39,7 @@ Warning: not all rules are supported
 module DerivationTrees
 
 export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, maxlength
-export initialize!, step!, isterminal, actionspace, iscomplete, play!, nextopennode
+export reset!, initialize!, step!, isterminal, actionspace, iscomplete, play!, nextopennode, isleaf
 export IncompleteException
 
 using RLESUtils, Observers, MemPools
@@ -415,6 +415,8 @@ function rand!(tree::DerivationTree, actions::Vector{Int64}=Int64[]; retries::In
   end
   return false #exceeded number of retries
 end
+
+isleaf(node::DerivTreeNode) = isempty(node.children)
 
 ################################
 #=
