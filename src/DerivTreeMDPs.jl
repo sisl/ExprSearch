@@ -110,8 +110,9 @@ end
 
 type DerivTreeTransitionDistr <: AbstractDistribution
   nextstate::DerivTreeState
+  DerivTreeTransitionDistr(mdp) = new(DerivTreeState(mdp))
+  DerivTreeTransitionDistr(state::DerivTreeState) = new(state)
 end
-DerivTreeTransitionDistr(mdp) = DerivTreeTransitionDistr(DerivTreeState(mdp))
 
 function generate_all_actions(grammar::Grammar)
   return [DerivTreeAction(i) for i = 1:maxlength(grammar)]

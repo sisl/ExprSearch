@@ -34,22 +34,27 @@
 
 using ExprSearch
 using ExprSearch.MC
-import ExprSearch: ExprProblem, create_grammar, get_fitness
+using RLESUtils, Interpreter
+import ExprSearch: ExprProblem, get_grammar, get_fitness
 
 const XRANGE = 0.0:0.5:10.0
 const YRANGE = 0.0:0.5:10.0
 const W_LEN = 0.1
+const SYMTABLE = SymbolTable(
+    :+ => +,
+    :* => *)
 
 gt(x, y) = 2x + 3y + 5
 
 type Symbolic{T<:AbstractFloat} <: ExprProblem
+  grammar::Grammar
   xrange::FloatRange{T}
   yrange::FloatRange{T}
   w_len::Float64
 end
-Symbolic() = Symbolic(XRANGE, YRANGE, W_LEN)
+Symbolic(grammar::Grammar) = Symbolic(grammar, XRANGE, YRANGE, W_LEN)
 
-function ExprSearch.create_grammar(problem::Symbolic)
+function create_grammar()
   @grammar grammar begin
     start = ex
     ex = sum | product | (ex) | value
@@ -61,15 +66,17 @@ function ExprSearch.create_grammar(problem::Symbolic)
   return grammar
 end
 
-function to_function(problem::Symbolic, expr)
-  @eval f(x, y) = $expr
-  return f
+function eval_expr(problem::Symbolic, expr, x, y)
+    SYMTABLE[:x] = x
+    SYMTABLE[:y] = y
+    return interpret(SYMTABLE, expr)
 end
 
+ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
 function ExprSearch.get_fitness(problem::Symbolic, expr)
   #mean-square error over a range
   sum_se = 0.0
-  f = to_function(problem, expr)
+  f(x, y) = eval_expr(problem, expr, x, y)
   for x in problem.xrange, y in problem.yrange
     sum_se += abs2(f(x, y) - gt(x, y))
   end
@@ -82,8 +89,10 @@ end
 function shorttest(; maxsteps::Int64=20,
                    n_samples::Int64=50)
 
-  problem = Symbolic()
-  mc_params = MCESParams(maxsteps, n_samples, false)
+
+  grammar = create_grammar()
+  problem = Symbolic(grammar)
+  mc_params = MCESParams(maxsteps, n_samples)
   result = exprsearch(mc_params, problem)
   @show result.fitness
   @show result.expr

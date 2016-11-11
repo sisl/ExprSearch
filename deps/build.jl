@@ -35,9 +35,8 @@
 pkgs = Pkg.installed()
 !haskey(pkgs, "RLESUtils") && Pkg.clone("https://github.com/sisl/RLESUtils.jl.git", "RLESUtils")
 !haskey(pkgs, "GrammaticalEvolution") && Pkg.clone("https://github.com/rcnlee/GrammaticalEvolution.git", "GrammaticalEvolution")
-!haskey(pkgs, "POMDPs") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPs.jl.git", "POMDPs")
-!haskey(pkgs, "POMDPDistributions") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPDistributions.jl.git", "POMDPDistributions")
-!haskey(pkgs, "Plots") && Pkg.clone("https://github.com/tbreloff/Plots.jl.git", "Plots")
+#!haskey(pkgs, "POMDPs") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPs.jl.git", "POMDPs")
+#!haskey(pkgs, "POMDPDistributions") && Pkg.clone("https://github.com/JuliaPOMDP/POMDPDistributions.jl.git", "POMDPDistributions")
 
 #for now... need to checkout master to get julia v0.4 changes
 Pkg.checkout("CPUTime", "master")

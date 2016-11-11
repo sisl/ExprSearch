@@ -69,7 +69,6 @@ end
 #non-decisions
 vec_count(grammar::Grammar, rule, logcnts0::CountDict) = count(grammar, rule, logcnts0)
 
-using Debug
 #"""
 #Returns a Dict where key is symbol of grammar rule and value is counts
 #"""

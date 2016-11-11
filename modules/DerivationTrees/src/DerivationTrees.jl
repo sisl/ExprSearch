@@ -42,6 +42,7 @@ export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, m
 export reset!, initialize!, step!, isterminal, actionspace, iscomplete, play!, nextopennode, isleaf
 export IncompleteException
 
+import Compat.ASCIIString
 using RLESUtils, Observers, MemPools
 using Reexport
 @reexport using GrammaticalEvolution

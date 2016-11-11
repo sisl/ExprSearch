@@ -243,13 +243,11 @@ function create_grammar()
   return grammar
 end
 
-using Debug
-@debug function test(; depth::Int64=20)
+function test(; depth::Int64=20)
   grammar = create_grammar()
   rcnts = rulecounts(grammar, depth)
   dcnts = decisioncounts(grammar, rcnts)
 
-  @bp
   rcnts, dcnts
 end
 
