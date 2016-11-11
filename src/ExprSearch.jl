@@ -60,9 +60,26 @@ get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not d
 exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
 
 load_to_path(MODULEDIR)
+const PKGS = readdir(MODULEDIR)
 
+"""
+Test an individual submodule
+"""
 function test(pkgs::AbstractString...; coverage::Bool=false)
   cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+end
+
+"""
+Test all submodules in modules folder.  Don't stop on error.
+"""
+function testall()
+    for pkg in PKGS
+        try
+            test(pkg)
+        catch
+            println("Error in $pkg")
+        end
+    end
 end
 
 include("MCTSExprSearch.jl") #MCTS without committing steps
