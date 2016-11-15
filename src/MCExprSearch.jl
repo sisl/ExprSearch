@@ -38,19 +38,19 @@ Returns the sample with the best result.
 """
 module MC
 
-export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult
+export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult, get_derivtree
 export PMCESParams
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils
-@reexport using DerivationTrees
-@reexport using GrammaticalEvolution
-@reexport using Observers
+@reexport using LinearDerivTrees  #for pretty strings
+using GrammaticalEvolution
+using Observers
 using Iterators
 using JLD
 
-import DerivationTrees.initialize!
+import LinearDerivTrees: initialize!, get_derivtree
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: isless, copy!
 
@@ -73,15 +73,15 @@ end
 PMCESParams(n_threads::Int64, mc_params::MCESParams) = PMCESParams(n_threads, mc_params, Observer())
 
 type MCState
-  tree::DerivationTree
+  tree::LinearDerivTree
   fitness::Float64
   expr
 end
 
-MCState(tree::DerivationTree) = MCState(tree, realmax(Float64), 0)
+MCState(tree::LinearDerivTree) = MCState(tree, realmax(Float64), 0)
 
 type MCESResult <: SearchResult
-  tree::DerivationTree
+  tree::LinearDerivTree
   actions::Vector{Int64}
   fitness::Float64
   expr
@@ -98,7 +98,7 @@ type MCESResult <: SearchResult
     return result
   end
 
-  function MCESResult(tree::DerivationTree)
+  function MCESResult(tree::LinearDerivTree)
     result = MCESResult()
     result.tree = tree
     return result
@@ -107,6 +107,8 @@ end
 
 exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, problem, userargs...)
 exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
+
+get_derivtree(result::MCESResult) = get_derivtree(result.tree)
 
 function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
@@ -140,15 +142,14 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = get_grammar(problem)
-  tree_params = DerivTreeParams(grammar, p.maxsteps)
+  tree_params = LDTParams(grammar, p.maxsteps)
 
-  s = MCState(DerivationTree(tree_params))
-  result = MCESResult(DerivationTree(tree_params))
+  s = MCState(LinearDerivTree(tree_params))
+  result = MCESResult(LinearDerivTree(tree_params))
 
   tstart = CPUtime_start()
   for i = 1:p.n_samples
     @notify_observer(p.observer, "iteration", [i])
-
     ###############
     #MC algorithm
     sample!(s, problem)
@@ -174,7 +175,7 @@ end
 
 #initialize to random state
 function sample!(s::MCState, problem::ExprProblem, retries::Int64=typemax(Int64))
-  rand!(s.tree, retries=retries) #sample uniformly
+  rand_with_retry!(s.tree, retries) #sample uniformly
   s.expr = get_expr(s.tree)
   s.fitness = get_fitness(problem, s.expr)
   s
@@ -188,7 +189,7 @@ function update!(result::MCESResult, s::MCState)
   if s.fitness < result.fitness
     copy!(result.tree, s.tree)
     resize!(result.actions, length(s.tree.actions))
-    copy!(result.actions, s.tree.actions)
+    result.actions = convert(Array, s.tree.actions)
     result.fitness = s.fitness
     result.expr = s.expr
     result.best_at_eval = result.totalevals

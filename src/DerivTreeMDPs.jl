@@ -34,18 +34,17 @@
 
 module DerivTreeMDPs
 
-using ExprSearch, DerivationTrees
+using ExprSearch, LinearDerivTrees
 using Reexport
 using RLESUtils, Observers
 using POMDPs
-using GrammaticalEvolution
 using Iterators
 
 export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivTreeStateSpace, DerivTreeActionSpace
 export DerivTreeTransitionDistr, discount, n_actions, actions, iterator, reward, sync!, step!, get_fitness, get_expr
 export create_state, create_action, create_transition_distribution
 
-import DerivationTrees: step!, isterminal, get_expr
+import LinearDerivTrees: step!, isterminal, get_expr
 import Base: ==, hash, rand!, copy!, push!
 import ExprSearch: ExprProblem, get_fitness
 
@@ -69,17 +68,17 @@ DerivTreeAction() = DerivTreeAction(-1)
 
 type DerivTreeMDP <: POMDP
   params::DerivTreeMDPParams
-  tree::DerivationTree #true state of the sim
+  tree::LinearDerivTree #true state of the sim
   problem::ExprProblem #used in calling get_fitness
   statehash::UInt64 #hash for current state for sync'ing purposes
   all_actions::Vector{DerivTreeAction}
   userargs::Vector{Any}
 
-  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::DerivationTree, problem::ExprProblem, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
+  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
     return new(p, tree, zero(UInt64), problem, all_actions, userargs)
   end
 
-  function DerivTreeMDP(p::DerivTreeMDPParams, tree::DerivationTree, problem::ExprProblem, userargs...)
+  function DerivTreeMDP(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, userargs...)
     mdp = new()
     mdp.params = p
     mdp.tree = tree

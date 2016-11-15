@@ -32,33 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Linearized to DFS-ordering Derivation tree (aka parse tree or syntax tree).  Wraps DerivationTrees.
-"""
-module LinearDFSDerivTrees 
+using ExprSearch
+using LinearDerivTrees
+using Base.Test
 
-export LinearDFSDerivTree
-#export initialize!, step!, isterminal, actionspace, iscomplete, play!, nextopennode
-
-using GrammarExpts, DerivationTrees
-#using RLESUtils, Observers
-#using GrammaticalEvolution
-
-#import Base: empty!, length, start, next, done, size, count, rand, rand!, copy!
-
-type LDFSActions
-    actions::Vector{Int64}
-end
-LDFSActions() = LDFSActions(Int64[])
-
-type LinearDFSDerivTree 
-    derivtree::DerivationTree
-    opennodes::Vector{DerivTreeNodes} #...Have DerivationTree only handle the tree, opennodes managed by higher modules
-    actions::LDFSActions
-end
-LinearDFSDerivTree(derivtree::DerivationTree) = LinearDFSDerivTree(derivtree, LDFSActions())
-
-#initialize!, step!, play! should go here...
-#Still a lot to do here...
-
-end #module

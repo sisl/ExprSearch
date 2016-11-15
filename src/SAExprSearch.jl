@@ -39,16 +39,16 @@ and replacing the subtree by a randomly generated one.  Use PSA for parallel ver
 """
 module SA
 
-export SAESParams, SAESResult, sa_search, exprsearch, SearchParams, SearchResult
+export SAESParams, SAESResult, sa_search, exprsearch, SearchParams, SearchResult, get_derivtree
 export accept_prob, estimate_temp_params
 export psa_search, PSAESParams
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, SwapBuffers, CPUTimeUtils
-@reexport using DerivationTrees
-@reexport using GrammaticalEvolution
-@reexport using Observers
+using DerivationTrees
+using GrammaticalEvolution
+using Observers
 using Iterators
 
 import DerivationTrees.initialize!

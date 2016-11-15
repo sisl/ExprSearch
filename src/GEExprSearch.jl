@@ -34,18 +34,19 @@
 
 module GE
 
-export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
+export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult, get_derivtree
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils
-@reexport using GrammaticalEvolution
-@reexport using DerivationTrees #for pretty strings
-@reexport using Observers
+using GrammaticalEvolution
+@reexport using LinearDerivTrees  #for pretty strings
+using Observers
 using CPUTime
 using JLD
 
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import LinearDerivTrees: get_derivtree
 
 type GEESParams <: SearchParams
   #GrammaticalEvolution params
@@ -64,7 +65,7 @@ type GEESParams <: SearchParams
 end
 
 type GEESResult <: SearchResult
-  tree::DerivationTree
+  tree::LinearDerivTree
   genome::Vector{Int64}
   fitness::Float64
   expr
@@ -73,6 +74,8 @@ type GEESResult <: SearchResult
 end
 
 exprsearch(p::GEESParams, problem::ExprProblem, userargs...) = ge_search(p, problem::ExprProblem, userargs...)
+
+get_derivtree(result::GEESResult) = get_derivtree(result.tree)
 
 function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting GE search"])
@@ -108,8 +111,8 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   best_at_eval = pop.best_at_eval
   totalevals = pop.totalevals
 
-  tree_params = DerivTreeParams(grammar, length(ind.genome))
-  tree = DerivationTree(tree_params)
+  tree_params = LDTParams(grammar, length(ind.genome))
+  tree = LinearDerivTree(tree_params)
   play!(tree, ind)
 
   @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"

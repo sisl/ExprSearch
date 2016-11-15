@@ -34,20 +34,22 @@
 
 module MCTS  #ExprSearch.MCTS
 
-export MCTSESParams, MCTSESResult, mcts_search, exprsearch, SearchParams, SearchResult
+export MCTSESParams, MCTSESResult, mcts_search, exprsearch, SearchParams, SearchResult 
+export get_derivtree
 
 include("DerivTreeMDPs.jl")
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils
-@reexport using DerivationTrees
-@reexport using .DerivTreeMDPs
-@reexport using GrammaticalEvolution
-@reexport using Observers
-@reexport using GBMCTS
+@reexport using LinearDerivTrees  #pretty_string
+using .DerivTreeMDPs
+using GrammaticalEvolution
+using Observers
+using GBMCTS
 using JLD
 
+import LinearDerivTrees: get_derivtree
 import .DerivTreeMDPs.get_fitness
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 
@@ -72,7 +74,7 @@ type MCTSESParams <: SearchParams
 end
 
 type MCTSESResult <: SearchResult
-  tree::DerivationTree
+  tree::LinearDerivTree
   actions::Vector{Int64}
   fitness::Float64
   expr::Union{Symbol,Expr}
@@ -82,15 +84,17 @@ end
 
 exprsearch(p::MCTSESParams, problem::ExprProblem, userargs...) = mcts_search(p, problem::ExprProblem, userargs...)
 
+get_derivtree(result::MCTSESResult) = get_derivtree(result.tree)
+
 function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = get_grammar(problem)
-  tree_params = DerivTreeParams(grammar, p.maxsteps)
+  tree_params = LDTParams(grammar, p.maxsteps)
   mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
 
-  tree = DerivationTree(tree_params)
+  tree = LinearDerivTree(tree_params)
   mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, 

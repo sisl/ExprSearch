@@ -37,17 +37,17 @@ Does not search. Takes an input sequence and replays it, producing emulated logs
 """
 module Ref
 
-export RefESParams, RefESResult, mc_search, exprsearch, SearchParams, SearchResult
+export RefESParams, RefESResult, mc_search, exprsearch, SearchParams, SearchResult, get_derivtree
 
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils
-@reexport using DerivationTrees
-@reexport using GrammaticalEvolution
-@reexport using Observers
+@reexport using LinearDerivTrees  #pretty_string
+using GrammaticalEvolution
+using Observers
 using Iterators
 
-import DerivationTrees.initialize!
+import LinearDerivTrees: get_derivtree
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: isless, copy!
 
@@ -64,7 +64,7 @@ end
 RefESParams(maxsteps::Int64, actions::Vector{Int64}) = RefESParams(maxsteps, actions, Observer())
 
 type RefESResult <: SearchResult
-  tree::DerivationTree
+  tree::LinearDerivTree
   actions::Vector{Int64}
   fitness::Float64
   expr
@@ -73,6 +73,8 @@ type RefESResult <: SearchResult
 end
 
 exprsearch(p::RefESParams, problem::ExprProblem, userargs...) = ref_search(p, problem, userargs...)
+
+get_derivtree(result::RefESResult) = get_derivtree(result.tree)
 
 function ref_search(p::RefESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting Ref search"])
