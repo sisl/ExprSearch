@@ -45,7 +45,7 @@ export IncompleteException
 import Compat.ASCIIString
 using RLESUtils, MemPools
 using Reexport
-using GrammaticalEvolution
+@reexport using GrammaticalEvolution
 
 import Base: length, copy!
 
