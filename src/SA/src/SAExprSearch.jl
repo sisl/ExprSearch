@@ -45,10 +45,9 @@ export psa_search, PSAESParams
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, SwapBuffers, CPUTimeUtils
+using RLESUtils, GitUtils, SwapBuffers, CPUTimeUtils, Observers
 using DerivationTrees
 using GrammaticalEvolution
-using Observers
 using Iterators
 
 import DerivationTrees.initialize!

@@ -32,16 +32,18 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+"""
+GrammaticalEvolution
+"""
 module GE
 
 export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult, get_derivtree
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils
+using RLESUtils, GitUtils, CPUTimeUtils, Observers
 using GrammaticalEvolution
 @reexport using LinearDerivTrees  #for pretty strings
-using Observers
 using CPUTime
 using JLD
 
@@ -58,7 +60,7 @@ type GEESParams <: SearchParams
   rand_frac::Float64
   prob_mutation::Float64
   mutation_rate::Float64
-  default_code
+  default_code::Any
   max_iters::Int64
 
   observer::Observer
@@ -73,6 +75,7 @@ type GEESResult <: SearchResult
   totalevals::Int64
 end
 
+#FIXME: don't pass userargs to get_fitness like this...
 exprsearch(p::GEESParams, problem::ExprProblem, userargs...) = ge_search(p, problem::ExprProblem, userargs...)
 
 get_derivtree(result::GEESResult) = get_derivtree(result.tree)
@@ -88,7 +91,6 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
   iter = 1
   tstart = CPUtime_start()
   while iter <= p.max_iters
-    CPUtic()
     pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
         p.mutation_rate, p, problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best

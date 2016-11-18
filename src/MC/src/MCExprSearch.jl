@@ -43,10 +43,9 @@ export PMCESParams
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils
+using RLESUtils, GitUtils, CPUTimeUtils, Observers
 @reexport using LinearDerivTrees  #for pretty strings
 using GrammaticalEvolution
-using Observers
 using Iterators
 using JLD
 
