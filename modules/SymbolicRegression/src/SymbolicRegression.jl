@@ -44,6 +44,7 @@ import ExprSearch: ExprProblem, get_fitness, get_grammar
 using RLESUtils, Interpreter
 
 const DIR = dirname(@__FILE__)
+const GT_FILE = "gt_easy.jl"
 const XRANGE = 0.0:0.5:10.0
 const YRANGE = 0.0:0.5:10.0
 const W_LEN = 0.1
@@ -60,7 +61,7 @@ type Symbolic{T<:AbstractFloat} <: ExprProblem
   grammar::Grammar
 end
 
-function Symbolic{T<:AbstractFloat}(gt_file::AbstractString, xrange::FloatRange{T}=XRANGE, yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
+function Symbolic{T<:AbstractFloat}(gt_file::AbstractString=GT_FILE, xrange::FloatRange{T}=XRANGE, yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
   if !endswith(gt_file, ".jl")
     gt_file *= ".jl"
   end

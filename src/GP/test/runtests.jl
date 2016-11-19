@@ -32,17 +32,35 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch
+using ExprSearch, SymbolicRegression
+using ExprSearch.GP
+using RLESUtils, Observers
 using Base.Test
 
 const DIR = dirname(@__FILE__)
 const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
 
+const MINDEPTHBYRULE = MinDepthByRule(
+    :start => 3,
+    :ex => 2,
+    :sum => 3,
+    :product => 3,
+    :value => 1,
+    :digit => 1)
+
+const MINDEPTHBYACTION = MinDepthByAction(
+    :start => Int64[3],
+    :ex => Int64[4,4,3,2],
+    :sum => Int64[3],
+    :product => Int64[3],
+    :value => Int64[1,1,2],
+    :digit => Int64[1,1,1,1,1,1,1,1,1,1])
+
 function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      seed=1,
                      logfileroot::AbstractString="symbolic_gp_log",
 
-                     pop_size::Int64=500,
+                     pop_size::Int64=10,
                      maxdepth::Int64=5,
                      iterations::Int64=10,
                      tournament_size::Int64=10,
@@ -55,8 +73,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      gt_file::AbstractString="gt_easy.jl",
 
                      vis::Bool=true,
-                     loginterval::Int64=100,
-                     observer::Observer)
+                     loginterval::Int64=100)
     srand(seed)
     mkpath(outdir)
 
@@ -77,3 +94,23 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
 
     return result
 end
+
+function test_mindepth()
+    problem = Symbolic("gt_easy.jl")
+    grammar = get_grammar(problem)
+    d = mindepth(grammar)
+    @test d == MINDEPTHBYRULE 
+    da = min_depth_actions(d, grammar)
+    @test da == MINDEPTHBYACTION
+end
+
+function test_rand(target_depth=5)
+    problem = Symbolic("gt_easy.jl")
+    grammar = get_grammar(problem)
+    mda = min_depth_actions(grammar)
+    for i = 1:5
+        ind = rand(grammar, mda, target_depth)
+        @show get_expr(ind.derivtree)
+    end
+end
+

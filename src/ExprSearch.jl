@@ -83,22 +83,22 @@ function testall()
 end
 
 include("GP/src/GPExprSearch.jl") #GP
-export GP
+#export GP
 
 include("GE/src/GEExprSearch.jl") #GE
-export GE
+#export GE
 
 include("MC/src/MCExprSearch.jl") #MC
-export MC
+#export MC
 
 include("MCTS/src/MCTSExprSearch.jl") #MCTS without committing steps
-export MCTS
+#export MCTS
 
 include("Ref/src/RefExprSearch.jl") #Ref
-export Ref
+#export Ref
 
 include("SA/src/SAExprSearch.jl") #SA
-export SA
+#export SA
 
 end #module
 
