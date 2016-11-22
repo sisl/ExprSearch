@@ -41,23 +41,29 @@ module GP
 export GPESParams, GPESResult, gp_search, exprsearch, SearchParams, SearchResult, get_derivtree
 export GPPopulation, GPIndividual
 export MinDepthByRule, MinDepthByAction, min_depth_rule, min_depth_actions
+export crossover, mutate, max_depth
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers
+using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, TreeIterators, TreeUtils
 using GrammaticalEvolution
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
 using JLD
 
-import DerivationTrees: initialize!
+using DerivTreeVis
+
+import DerivationTrees: initialize!, max_depth
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
-import Base: copy!, sort!, isless, resize!, empty!, push!, length, start, next, done, rand
+import Base: copy!, sort!, isless, resize!, empty!, push!, length, start, next, done, rand, getindex
 
 typealias MinDepthByRule Dict{Symbol,Int64}
 typealias MinDepthByAction Dict{Symbol,Vector{Int64}}
 
 immutable RuleNotFoundException <: Exception end
+immutable DepthExceededException <: Exception end
+
+const DEFAULT_EXPR = :()
 
 immutable GPESParams
     pop_size::Int64
@@ -68,7 +74,7 @@ immutable GPESParams
     crossover_frac::Float64
     mutate_frac::Float64
     rand_frac::Float64
-    default_code
+    default_expr
     observer::Observer
 end
 
@@ -80,18 +86,19 @@ type GPESResult <: SearchResult
   totalevals::Int64
 end
 GPESResult(grammar::Grammar) = GPESResult(DerivationTree(DerivTreeParams(grammar)), realmax(Float64),
-    :(false), 0, 0)
+    DEFAULT_EXPR, 0, 0)
 
 exprsearch(p::GPESParams, problem::ExprProblem, userargs...) = gp_search(p, problem::ExprProblem, userargs...)
 
-get_derivtree(result::GPESResult) = get_derivtree(result.tree)
+get_derivtree(result::GPESResult) = result.tree
 
 type GPIndividual
     derivtree::DerivationTree
     expr
     fitness::Nullable{Float64}
 end
-GPIndividual(grammar::Grammar) = GPIndividual(DerivationTree(DerivTreeParams(grammar)), :(false), Nullable{Float64}())
+GPIndividual(grammar::Grammar) = GPIndividual(DerivationTree(DerivTreeParams(grammar)), 
+    DEFAULT_EXPR, Nullable{Float64}())
 
 type GPPopulation
     individuals::Vector{GPIndividual}
@@ -103,16 +110,18 @@ function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
     @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
     grammar = get_grammar(problem)
+    mdr = min_depth_rule(grammar) 
+    mda = min_depth_actions(mdr, grammar)
     result = GPESResult(grammar) 
 
     pop = GPPopulation()
-    initialize!(pop, grammar, p.pop_size, p.maxdepth)
+    initialize!(pop, grammar, mdr, mda, p.pop_size, p.maxdepth)
     fitness = realmax(Float64)
     iter = 1
     tstart = CPUtime_start()
     while iter <= p.iterations
         println("iteration $iter")
-        pop = generate(p, grammar, pop, result, problem, userargs...)
+        pop = generate(p, grammar, mda, pop, result, problem, userargs...)
         ind = best_ind(pop)
         fitness = ind.fitness 
         expr = ind.expr 
@@ -123,9 +132,8 @@ function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
         @notify_observer(p.observer, "current_best", [nevals, fitness, code])
         iter += 1
     end
-    @assert result.fitness <= best_fitness(pop)
-
-    return result
+    @assert result.fitness <= get(best_ind(pop).fitness)
+    result 
 end
 
 start(pop::GPPopulation) = start(pop.individuals)
@@ -149,6 +157,15 @@ end
 push!(pop::GPPopulation, ind::GPIndividual) = push!(pop.individuals, ind)
 empty!(pop::GPPopulation) = empty!(pop.individuals)
 length(pop::GPPopulation) = length(pop.individuals)
+getindex(pop::GPPopulation, index) = getindex(pop.individuals, index)
+
+function copy!(dst::GPIndividual, src::GPIndividual)
+   copy!(dst.derivtree, src.derivtree)
+   dst.expr = src.expr
+   dst.fitness = src.fitness #isbits, so can just copy
+end
+
+max_depth(ind::GPIndividual) = max_depth(ind.derivtree)
 
 """
 Compute minimum depth for each rule
@@ -181,6 +198,9 @@ function min_depth_rule(d::MinDepthByRule, rule::ExprRule)
     maximum(map(r->min_depth_rule(d,r), a))
 end
 
+"""
+Compute minimum depth per action of decision rule
+"""
 function min_depth_actions(grammar::Grammar)
     d = min_depth_rule(grammar)
     da = min_depth_actions(d, grammar)
@@ -206,12 +226,11 @@ end
 """
 Initialize population.  Ramped initialization.
 """
-function initialize!(pop::GPPopulation, grammar::Grammar, pop_size::Int64, maxdepth::Int64)
-    empty!(pop)
-    mdr = min_depth_rule(grammar) 
-    mda = min_depth_actions(mdr, grammar)
-    startmindepth = mdr[:start]
+function initialize!(pop::GPPopulation, grammar::Grammar, mdr::MinDepthByRule, 
+    mda::MinDepthByAction, pop_size::Int64, maxdepth::Int64)
 
+    empty!(pop)
+    startmindepth = mdr[:start]
     for d in cycle(startmindepth:maxdepth)
         try
             ind = rand(grammar, mda, d) 
@@ -221,10 +240,16 @@ function initialize!(pop::GPPopulation, grammar::Grammar, pop_size::Int64, maxde
                 rethrow(e)
             end
         end
-        println("pop: $(length(pop))")
         length(pop) < pop_size || break
     end
     pop
+end
+
+function resample_subtree!(tree::DerivationTree, node::DerivTreeNode, mda::MinDepthByAction,
+    target_depth::Int64)
+    rm_node(tree, node.children) #return child nodes
+    opennodes = DerivTreeNode[node]
+    rand_subtree!(tree, node, opennodes, mda, target_depth) 
 end
 
 """
@@ -236,9 +261,15 @@ function rand(grammar::Grammar, mda::MinDepthByAction, target_depth::Int64)
     tree = ind.derivtree 
     node = initialize!(tree)
     push!(opennodes, node)
+    rand_subtree!(tree, node, opennodes, mda, target_depth)
+    ind
+end
+
+function rand_subtree!(tree::DerivationTree, node::DerivTreeNode, opennodes::Vector{DerivTreeNode}, 
+    mda::MinDepthByAction, target_depth::Int64)
     while !isempty(opennodes)
         node = pop!(opennodes)
-        if isa(node.rule, DecisionRule)
+        if is_decision(node) 
             depths = mda[Symbol(node.rule.name)]
             actions = find(x->x <= target_depth-node.depth, depths) 
             if isempty(actions) 
@@ -252,17 +283,16 @@ function rand(grammar::Grammar, mda::MinDepthByAction, target_depth::Int64)
         end
         append!(opennodes, nodes)
     end
-    ind
 end
-
 """
 Evaluate fitness function
 """
-function evaluate!(pop::GPPopulation, result::GPESResult, problem::ExprProblem, userargs...)
-    n = 0 #number of fitness calls
+function evaluate!(pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
+    default_expr, userargs...)
     for ind in pop
         if isnull(ind.fitness)
             try
+                #derivtreevis(ind.derivtree, "myderivationtree")
                 ind.expr = get_expr(ind.derivtree)
                 fitness = get_fitness(problem, ind.expr, userargs...)
                 ind.fitness = Nullable{Float64}(fitness) 
@@ -275,16 +305,16 @@ function evaluate!(pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
                 end
             catch e
                 if !isa(e, IncompleteException)
-                    println("Exception in GP evaluate!: ", e)
-                    error()
+                    rethrow(e)
                 end
-                ind.expr = p.default_code
-                ind.fitness = realmax(ind.fitness)
+                ind.expr = default_expr
+                ind.fitness = Nullable{Float64}(realmax(Float64))
             end
         end
     end
-    n
 end
+
+TreeUtils.get_children(node::DerivTreeNode) = DerivationTrees.get_children(node)
 
 """
 Tournament selection
@@ -293,40 +323,63 @@ Best fitness wins deterministically
 function selection(pop::GPPopulation, tournament_size::Int64) 
     #randomly choose N inds and compare their fitness  
     ids = rand(1:length(pop), tournament_size)
-    pool = pop[ids] 
     #return the ind with min fitness
-    (fitness, id) = findmin(map(ind->ind.fitness, pool))
-    pool[id]
+    (fitness, id) = findmin(map(i->pop[i], ids))
+    pop[id]
+end
+
+function findbyrule(ind::GPIndividual, name::AbstractString)
+    candidates = DerivTreeNode[]
+    for node in tree_iter(ind.derivtree.root)
+        if node.rule.name == name 
+            push!(candidates, node)
+        end
+    end
+    candidates
 end
 
 """
 Crossover
 """
-function crossover(ind1::GPIndividual, ind2::GPIndividual, grammar::Grammar)
+function crossover(ind1::GPIndividual, ind2::GPIndividual, grammar::Grammar, maxdepth::Int64)
     ind3 = GPIndividual(grammar)
     ind4 = GPIndividual(grammar)
+    copy!(ind3.derivtree, ind1.derivtree)
+    copy!(ind4.derivtree, ind2.derivtree)
 
-    #choose crossover point on ind1
-
+    node3 = rand_node(n->!is_terminal(n), ind3.derivtree.root) #choose crossover point on ind3
+    candidates = findbyrule(ind4, node3.rule.name) #find corresponding on ind4
+    isempty(candidates) && throw(RuleNotFoundException())
+    node4 = rand_element(candidates)
+    swap_children!(node3, node4)
+    if max_depth(ind3) > maxdepth || max_depth(ind4) > maxdepth
+        throw(DepthExceededException())
+    end
     (ind3, ind4)
 end #module
-
 
 """
 Mutation
 """
-function mutate!(ind::GPIndividual)
-    #choose random node
+function mutate(ind1::GPIndividual, grammar::Grammar, mda::MinDepthByAction, target_depth::Int64)
+    ind2 = GPIndividual(grammar)
+    copy!(ind2.derivtree, ind1.derivtree)
 
+    #choose random node
+    tree = ind2.derivtree
+    node = rand_node(tree.root)
+    resample_subtree!(tree, node, mda, target_depth)
+    ind2
 end
 
 """
 Adjust to target pop_size
 """
-function adjust_to_size!(newpop::GPPopulation, pop::GPPopulation, pop_size::Int64)
+function adjust_to_size!(newpop::GPPopulation, pop::GPPopulation, pop_size::Int64, 
+    tournament_size::Int64)
     #reproduce if undersize
     while length(newpop) < pop_size
-        ind1 = selection(pop)
+        ind1 = selection(pop, tournament_size)
         push!(newpop, ind1)
     end
     
@@ -350,15 +403,16 @@ end
 """
 Create next generation
 """
-function generate(p::GPESParams, grammar::Grammar, pop::GPPopulation, result::GPESResult, 
-    problem::ExprProblem, userargs...)
+function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction, 
+    pop::GPPopulation, result::GPESResult, problem::ExprProblem, userargs...)
 
+    #println("enter generate")
     n_keep = floor(Int64, p.top_keep*p.pop_size)
     n_crossover = floor(Int64, p.crossover_frac*p.pop_size)
     n_mutate = floor(Int64, p.mutate_frac*p.pop_size)
     n_rand = floor(Int64, p.rand_frac*p.pop_size)
 
-    evaluate!(pop, result, problem, userargs...)
+    evaluate!(pop, result, problem, p.default_expr, userargs...)
     sort!(pop)
     newpop = GPPopulation()
 
@@ -368,15 +422,16 @@ function generate(p::GPESParams, grammar::Grammar, pop::GPPopulation, result::GP
     #crossover
     n = 0
     while n < n_crossover
-        ind1 = selection(pop)
-        ind2 = selection(pop) 
+        #println("crossover: $n")
+        ind1 = selection(pop, p.tournament_size)
+        ind2 = selection(pop, p.tournament_size) 
         try
-            (ind3, ind4) = crossover(ind1, ind2, grammar)
+            (ind3, ind4) = crossover(ind1, ind2, grammar, p.maxdepth)
             push!(newpop, ind3)
             push!(newpop, ind4)
             n += 2
         catch e
-            if !isa(e, RuleNotFoundException)
+            if !isa(e, Union{RuleNotFoundException,DepthExceededException})
                 rethrow(e)
             end
         end
@@ -385,8 +440,9 @@ function generate(p::GPESParams, grammar::Grammar, pop::GPPopulation, result::GP
     #mutate
     n = 0
     while n < n_mutate
-        ind1 = selection(pop)
-        ind2 = mutate(ind1)
+        #println("mutate: $n")
+        ind1 = selection(pop, p.tournament_size)
+        ind2 = mutate(ind1, grammar, mda, p.maxdepth)
         push!(newpop, ind2)
         n += 1
     end
@@ -394,8 +450,9 @@ function generate(p::GPESParams, grammar::Grammar, pop::GPPopulation, result::GP
     #random
     n = 0
     while n < n_rand 
+        #println("random: $n")
         try
-            ind1 = rand(grammar, da, d)
+            ind1 = rand(grammar, mda, p.maxdepth)
             push!(newpop, ind1)
             n += 1
         catch e
@@ -406,10 +463,10 @@ function generate(p::GPESParams, grammar::Grammar, pop::GPPopulation, result::GP
     end
 
     #adjust size: trim or reproduce to size
-    adjust_to_size!(newpop::GPPopulation, pop::GPPopulation, pop_size::Int64)
+    adjust_to_size!(newpop, pop, p.pop_size, p.tournament_size)
 
-    evaluate!(newpop, result, prblem, userargs...)
-    sort!(pop)
+    evaluate!(newpop, result, problem, p.default_expr, userargs...)
+    sort!(newpop)
 
     newpop
 end

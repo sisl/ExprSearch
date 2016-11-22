@@ -32,4 +32,4 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-gt(x, y) = 5x^2 - 7x - 3y^2 + 4y + xy - 8
+gt(x, y) = 5x^2 - 7x - 3y^2 - 8

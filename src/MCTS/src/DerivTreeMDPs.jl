@@ -44,7 +44,7 @@ export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivT
 export DerivTreeTransitionDistr, discount, n_actions, actions, iterator, reward, sync!, step!, get_fitness, get_expr
 export create_state, create_action, create_transition_distribution
 
-import LinearDerivTrees: step!, isterminal, get_expr
+import LinearDerivTrees: step!, get_expr
 import Base: ==, hash, rand!, copy!, push!
 import ExprSearch: ExprProblem, get_fitness
 
@@ -186,7 +186,7 @@ function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
   reward = if iscomplete(tree)
     expr = get_expr(tree)
     -get_fitness(mdp.problem, expr, mdp.userargs...)
-  elseif isterminal(tree) #not-compilable
+  elseif isdone(tree) #not-compilable
     p.max_neg_reward
   else #each step
     p.step_reward
@@ -199,7 +199,7 @@ function POMDPs.isterminal(mdp::DerivTreeMDP, s::DerivTreeState)
   p = mdp.params
   @notify_observer(p.observer, "debug2", ["isterminal called"])
   sync!(s)
-  return isterminal(s.mdp.tree)
+  return isdone(s.mdp.tree)
 end
 
 # initializes a model state

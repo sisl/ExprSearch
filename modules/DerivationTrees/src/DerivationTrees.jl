@@ -38,49 +38,50 @@ Warning: not all rules are supported
 """
 module DerivationTrees
 
-export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr, maxlength
-export initialize!, actionspace, iscomplete, isleaf, expand_node!
+export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, TerminalRule, get_expr, maxlength
+export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, is_terminal
+export swap_children!, max_depth, rm_node
 export IncompleteException
 
 import Compat.ASCIIString
-using RLESUtils, MemPools
+using RLESUtils, MemPools, TreeIterators
 using Reexport
 @reexport using GrammaticalEvolution
 
 import Base: length, copy!
 
 typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
+typealias TerminalRule Union{RangeRule, } #rules that have no children
 
 type DerivTreeParams
-  grammar::Grammar
+    grammar::Grammar
 end
 
 type DerivTreeNode
-  cmd::ASCIIString
-  rule::Union{Rule,Void}
-  action::Int64
-  depth::Int64
-  children::Vector{DerivTreeNode}
+    cmd::ASCIIString
+    rule::Union{Rule,Void}
+    action::Int64
+    depth::Int64
+    children::Vector{DerivTreeNode}
 end
 function DerivTreeNode(rule::Union{Rule,Void}=nothing, depth::Int64=0,
                        cmd::AbstractString="", action::Int64=-1)
-  return DerivTreeNode(cmd, rule, action, depth, DerivTreeNode[])
+    return DerivTreeNode(cmd, rule, action, depth, DerivTreeNode[])
 end
 
-
 type DerivationTree
-  params::DerivTreeParams
-  root::DerivTreeNode
-  nopen::Int64
-  maxactions::Int64 #maximum size of actionspace
-  nodepool::MemPool
+    params::DerivTreeParams
+    root::DerivTreeNode
+    nopen::Int64
+    maxactions::Int64 #maximum size of actionspace
+    nodepool::MemPool
 end
 
 function DerivationTree(p::DerivTreeParams, nodepool::MemPool=MemPool(DerivTreeNode,200,400))
-  root = DerivTreeNode(p.grammar.rules[:start])
-  maxactions = maxlength(p.grammar)
-  tree = DerivationTree(p, root, 0, maxactions, nodepool)
-  tree
+    root = DerivTreeNode(p.grammar.rules[:start])
+    maxactions = maxlength(p.grammar)
+    tree = DerivationTree(p, root, 0, maxactions, nodepool)
+    tree
 end
 
 include("formatter.jl")
@@ -89,32 +90,26 @@ immutable IncompleteException <: Exception end
 
 const EMPTYARRAY = DerivTreeNode[]
 
-#= function nextopennode(tree::DerivationTree) =#
-#=   if isempty(tree.opennodes) =#
-#=     return Nullable{Rule}() =#
-#=   end =#
-#=   node = top(tree.opennodes) =#
-#=   nullable_rule =  Nullable{Rule}(node.rule)  =#
-#=   nullable_rule =#
-#= end =#
+is_decision(node::DerivTreeNode) = isa(node.rule, DecisionRule)
+is_terminal(node::DerivTreeNode) = isempty(node.children)
 
 #reset tree, children are deallocated, root is kept
 function initialize!(tree::DerivationTree)
-  rm_node(tree, tree.root.children)
-  initialize!(tree.root)
-  tree.root.rule = tree.params.grammar.rules[:start]
-  tree.nopen = 1
-  tree.root
+    rm_node(tree, tree.root.children)
+    initialize!(tree.root)
+    tree.root.rule = tree.params.grammar.rules[:start]
+    tree.nopen = 1
+    tree.root
 end
 
 #reset node, children are emptied
 function initialize!(node::DerivTreeNode)
-  node.rule = nothing
-  node.depth = 0
-  node.cmd = ""
-  node.action = -1
-  empty!(node.children)
-  node
+    node.rule = nothing
+    node.depth = 0
+    node.cmd = ""
+    node.action = -1
+    empty!(node.children)
+    node
 end
 
 function mk_node(tree::DerivationTree)
@@ -130,15 +125,15 @@ end
 
 #returns children to pool before emptying
 function return_to_pool(nodepool::MemPool, nodes::Vector{DerivTreeNode})
-  for node in nodes
-    return_to_pool(nodepool, node)
-  end
-  empty!(nodes)
+    for node in nodes
+        return_to_pool(nodepool, node)
+    end
+    empty!(nodes)
 end
 
 function return_to_pool(nodepool::MemPool, node::DerivTreeNode)
-  return_to_pool(nodepool, node.children) #return children first
-  checkin(nodepool, node) #return self
+    return_to_pool(nodepool, node.children) #return children first
+    checkin(nodepool, node) #return self
 end
 
 function iscomplete(tree::DerivationTree) 
@@ -154,36 +149,36 @@ expand_node!(tree::DerivationTree, node::DerivTreeNode, a::Int64) =
 ###########################
 ### expand_node! nonterminals
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
-  tree.nopen -= 1  
-  node.action = a
-  node.cmd = rule.name
-  idx = ((a - 1) % length(rule.values)) + 1 #1-indexed
-  child = mk_node(tree)
-  child.rule = rule.values[idx]
-  child.depth = node.depth + 1
-  push!(node.children, child)
-  tree.nopen += length(node.children)
-  node.children
+    tree.nopen -= 1  
+    node.action = a
+    node.cmd = rule.name
+    idx = ((a - 1) % length(rule.values)) + 1 #1-indexed
+    child = mk_node(tree)
+    child.rule = rule.values[idx]
+    child.depth = node.depth + 1
+    push!(node.children, child)
+    tree.nopen += length(node.children)
+    node.children
 end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ReferencedRule)
   #don't create a child node for reference rules, shortcut through
-  node.rule = tree.params.grammar.rules[rule.symbol]
-  DerivTreeNode[node]
+    node.rule = tree.params.grammar.rules[rule.symbol]
+    DerivTreeNode[node]
 end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule, a::Int64)
-  tree.nopen -= 1  
-  node.cmd = rule.name
-  reps = ((a - 1) % length(rule.range)) + rule.range.start
-  for i = 1:reps
-    child = mk_node(tree)
-    child.rule = rule.value
-    child.depth = node.depth + 1
-    push!(node.children, child)
-  end
-  tree.nopen += length(node.children)
-  node.children
+    tree.nopen -= 1  
+    node.cmd = rule.name
+    reps = ((a - 1) % length(rule.range)) + rule.range.start
+    for i = 1:reps
+        child = mk_node(tree)
+        child.rule = rule.value
+        child.depth = node.depth + 1
+        push!(node.children, child)
+    end
+    tree.nopen += length(node.children)
+    node.children
 end
 
 #= not tested...
@@ -197,89 +192,89 @@ end
 =#
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
-  tree.nopen -= 1  
-  node.cmd = rule.name
-  for arg in rule.args
-    if isa(arg, Rule)
-      child = mk_node(tree)
-      child.rule = arg
-      child.depth = node.depth + 1
-      push!(node.children, child)
+    tree.nopen -= 1  
+    node.cmd = rule.name
+    for arg in rule.args
+        if isa(arg, Rule)
+            child = mk_node(tree)
+            child.rule = arg
+            child.depth = node.depth + 1
+            push!(node.children, child)
+        end
     end
-  end
-  tree.nopen += length(node.children)
-  node.children
+    tree.nopen += length(node.children)
+    node.children
 end
 
 ###########################
 ### Terminals
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RangeRule, a::Int64)
-  tree.nopen -= 1  
-  node.action = a
-  EMPTYARRAY #use a pre-allocated empty array
+    tree.nopen -= 1  
+    node.action = a
+    EMPTYARRAY #use a pre-allocated empty array
 end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::Terminal)
-  tree.nopen -= 1  
-  EMPTYARRAY #use a pre-allocated empty array
+    tree.nopen -= 1  
+    EMPTYARRAY #use a pre-allocated empty array
 end
 
 ###########################
 ### get_expr
 function get_expr(tree::DerivationTree) #entry
-  return iscomplete(tree) ? get_expr(tree.root) : throw(IncompleteException())
+    return iscomplete(tree) ? get_expr(tree.root) : throw(IncompleteException())
 end
 
 get_expr(node::DerivTreeNode) = get_expr(node, node.rule)
 get_expr(node::DerivTreeNode, rule::Terminal) = rule.value
 
 function get_expr(node::DerivTreeNode, rule::RangeRule)
-  value = ((node.action - 1) % length(rule.range)) + rule.range.start
+    value = ((node.action - 1) % length(rule.range)) + rule.range.start
 
-  if rule.action != nothing
-    value = rule.action(value)
-  end
+    if rule.action != nothing
+        value = rule.action(value)
+    end
 
-  return value
+    return value
 end
 
 function get_expr(node::DerivTreeNode, rule::OrRule)
-  child = node.children[1]
-  value = get_expr(child, child.rule)
+    child = node.children[1]
+    value = get_expr(child, child.rule)
 
-  if rule.action != nothing
-    value = rule.action(value)
-  end
+    if rule.action != nothing
+        value = rule.action(value)
+    end
 
-  return value
+    return value
 end
 
 function get_expr(node::DerivTreeNode, rule::RepeatedRule)
-  values = Any[]
-  for child in node.children
-    push!(values, get_expr(child, child.rule))
-  end
+    values = Any[]
+    for child in node.children
+        push!(values, get_expr(child, child.rule))
+    end
 
-  if rule.action !== nothing
-    values = rule.action(values)
-  end
+    if rule.action !== nothing
+        values = rule.action(values)
+    end
 
-  return values
+    return values
 end
 
 function get_expr(node::DerivTreeNode, rule::ExprRule)
-  xs = Any[]
-  child_i = 1
-  for arg in rule.args
-    if isa(arg, Rule)
-      child = node.children[child_i]
-      push!(xs, get_expr(child, child.rule))
-      child_i += 1
-    else
-      push!(xs, arg)
+    xs = Any[]
+    child_i = 1
+    for arg in rule.args
+        if isa(arg, Rule)
+            child = node.children[child_i]
+            push!(xs, get_expr(child, child.rule))
+            child_i += 1
+        else
+            push!(xs, arg)
+        end
     end
-  end
-  return Expr(xs...)
+    return Expr(xs...)
 end
 
 ###########################
@@ -308,22 +303,34 @@ Base.length(rule::RangeRule) = length(rule.range)
 Base.length(rule::Rule) = 1
 
 function copy!(dst::DerivationTree, src::DerivationTree)
-  initialize!(dst)
-  copy!(dst.root, src.root, dst.nodepool)
+    initialize!(dst)
+    copy!(dst.root, src.root, dst.nodepool)
 end
 
 function copy!(dst::DerivTreeNode, src::DerivTreeNode, nodepool::MemPool{DerivTreeNode})
-  dst.rule = src.rule
-  dst.depth = src.depth
-  dst.cmd = src.cmd
-  for srcchild in src.children
-    dstchild = checkout(nodepool)
-    copy!(dstchild, srcchild, nodepool)
-    push!(dst.children, dstchild)
-  end
+    dst.rule = src.rule
+    dst.depth = src.depth
+    dst.cmd = src.cmd
+    dst.action = src.action
+    for srcchild in src.children
+        dstchild = checkout(nodepool)
+        copy!(dstchild, srcchild, nodepool)
+        push!(dst.children, dstchild)
+    end
 end
 
 isleaf(node::DerivTreeNode) = isempty(node.children)
+get_children(node::DerivTreeNode) = node.children
+
+function swap_children!(x::DerivTreeNode, y::DerivTreeNode)
+    ch = x.children
+    x.children = y.children
+    y.children = ch
+end
+
+max_depth(tree::DerivationTree) = max_depth(tree.root)
+max_depth(node::DerivTreeNode) = traverse(x->x.depth, (x,y)->max(x,y), node)
+
 
 #= """ =#
 #= Generate a random tree.  =#
@@ -361,24 +368,12 @@ isleaf(node::DerivTreeNode) = isempty(node.children)
 #uniformly randomly select a node from tree
 rand(tree::DerivationTree) = rand(tree.root)
 
-#uniformly randomly select a node from subtree using reservoir sampling
-function rand(startnode::DerivTreeNode)
-  current = startnode
-  n = 1
-  for node in startnode
-    if rand() <= 1/n
-      current = node
-    end
-    n += 1
-  end
-  return current
-end
 
 #generate a random tree, returns true if complete tree was attained
 function rand!(tree::DerivationTree, retries::Int64=5)
   while retries > 0
     initialize!(tree)
-    while !isterminal(tree)
+    while !isdone(tree)
       as = actionspace(tree)
       step!(tree, rand(as))
     end
@@ -405,7 +400,7 @@ end
 function rand!(tree::DerivationTree, startnode::DerivTreeNode, retries::Int64=5)
   while retries > 0
     initialize!(tree, startnode)
-    while !isterminal(tree)
+    while !isdone(tree)
       as = actionspace(tree)
       step!(tree, rand(as))
     end

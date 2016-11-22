@@ -55,32 +55,32 @@ const SYMTABLE = SymbolTable(
     )
 
 type Symbolic{T<:AbstractFloat} <: ExprProblem
-  xrange::FloatRange{T}
-  yrange::FloatRange{T}
-  w_len::Float64
-  grammar::Grammar
+    xrange::FloatRange{T}
+    yrange::FloatRange{T}
+    w_len::Float64
+    grammar::Grammar
 end
 
-function Symbolic{T<:AbstractFloat}(gt_file::AbstractString=GT_FILE, xrange::FloatRange{T}=XRANGE, yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
-  if !endswith(gt_file, ".jl")
-    gt_file *= ".jl"
-  end
-
-  @eval include(joinpath($DIR, $gt_file)) #define gt in module scope
-  grammar = create_grammar()
-  return Symbolic(xrange, yrange, w_len, grammar)
+function Symbolic{T<:AbstractFloat}(gt_file::AbstractString=GT_FILE, xrange::FloatRange{T}=XRANGE, 
+    yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
+    if !endswith(gt_file, ".jl")
+        gt_file *= ".jl"
+    end
+    @eval include(joinpath($DIR, $gt_file)) #define gt in module scope
+    grammar = create_grammar()
+    return Symbolic(xrange, yrange, w_len, grammar)
 end
 
 function create_grammar()
-  @grammar grammar begin
-    start = ex
-    ex = sum | product | (ex) | value
-    sum = Expr(:call, :+, ex, ex)
-    product = Expr(:call, :*, ex, ex)
-    value = :x | :y | digit
-    digit = 0:9
-  end
-  return grammar
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | (ex) | value
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        value = :x | :y | digit
+        digit = 0:9
+    end
+    grammar
 end
 
 function eval_expr(problem::Symbolic, expr, x, y)
@@ -92,15 +92,14 @@ end
 ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
 
 function ExprSearch.get_fitness(problem::Symbolic, expr)
-  #mean-square error over a range
-  sum_se = 0.0
-  for x in problem.xrange, y in problem.yrange
-    sum_se += abs2(eval_expr(problem, expr, x, y) - gt(x, y))
-  end
-  n = length(problem.xrange) * length(problem.yrange)
-  fitness = sum_se / n + problem.w_len * length(string(expr))
-
-  return fitness
+    #mean-square error over a range
+    sum_se = 0.0
+    for x in problem.xrange, y in problem.yrange
+        sum_se += abs2(eval_expr(problem, expr, x, y) - gt(x, y))
+    end
+    n = length(problem.xrange) * length(problem.yrange)
+    fitness = sum_se / n + problem.w_len * length(string(expr))
+    fitness
 end
 
 end #module

@@ -40,7 +40,7 @@ module LinearDerivTrees
 
 export Grammar
 export LDTParams, LDTActions, LinearDerivTree, AbstractTreeOrder, DepthFirst, BreadthFirst  
-export initialize!, step!, play!, actionspace, isterminal, iscomplete, get_derivtree
+export initialize!, step!, play!, actionspace, isdone, iscomplete, get_derivtree
 export rand_with_retry!, maxlength 
 
 using Reexport
@@ -134,6 +134,8 @@ function step!(tree::LinearDerivTree, a::Int64)
   if isempty(opennodes)
     return #we're done
   end
+  as = actionspace(tree)
+  a = ((a-1) % length(as)) + 1 #1-indexed 
   push!(tree.actions, a)
   node = pop!(opennodes)
   children = expand_node!(tree.derivtree, node, a)
@@ -146,7 +148,7 @@ play!(tree::LinearDerivTree, x) = play!(tree, LDTActions(x))
 function play!(tree::LinearDerivTree, actions::LDTActions)
   initialize!(tree)
   n = 0
-  while !isterminal(tree) && n < length(actions)
+  while !isdone(tree) && n < length(actions)
     n += 1
     step!(tree, actions[n])
   end
@@ -181,7 +183,7 @@ function iscomplete(tree::LinearDerivTree)
     iscomplete(tree.derivtree)
 end
 
-function isterminal(tree::LinearDerivTree)
+function isdone(tree::LinearDerivTree)
   return iscomplete(tree) || length(tree.actions) >= tree.params.maxsteps
 end
 
@@ -223,7 +225,7 @@ Returns true if completed successfully, false otherwise
 """
 function rand!(tree::LinearDerivTree)
     initialize!(tree)
-    while !isterminal(tree)
+    while !isdone(tree)
       as = actionspace(tree)
       step!(tree, rand(as))
     end

@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch, SymbolicRegression
+using ExprSearch, SymbolicRegression, DerivTreeVis
 using ExprSearch.GP
 using RLESUtils, Observers
 using Base.Test
@@ -60,10 +60,10 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      seed=1,
                      logfileroot::AbstractString="symbolic_gp_log",
 
-                     pop_size::Int64=10,
-                     maxdepth::Int64=5,
+                     pop_size::Int64=1000,
+                     maxdepth::Int64=10,
                      iterations::Int64=10,
-                     tournament_size::Int64=10,
+                     tournament_size::Int64=20,
                      top_keep::Float64=0.1,
                      crossover_frac::Float64=0.4,
                      mutate_frac::Float64=0.2,
@@ -91,7 +91,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
     end
-
+    @show result.expr
     return result
 end
 
@@ -114,3 +114,51 @@ function test_rand(target_depth=5)
     end
 end
 
+using RLESUtils, TreeUtils
+function test_randnode()
+    problem = Symbolic()
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    grammar = get_grammar(problem)
+    mda = min_depth_actions(grammar)
+    ind = rand(grammar, mda, 5) 
+    node = rand_node(ind.derivtree.root)
+end
+
+using DerivTreeVis
+function test_crossover()
+    problem = Symbolic()
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    grammar = get_grammar(problem)
+    mda = min_depth_actions(grammar)
+    ind1 = rand(grammar, mda, 5) 
+    node1 = rand_node(ind1.derivtree.root)
+    derivtreevis(ind1.derivtree, "node1")
+    ind2 = rand(grammar, mda, 5) 
+    node2 = rand_node(ind2.derivtree.root)
+    derivtreevis(ind2.derivtree, "node2")
+    (ind3, ind4) = crossover(ind1, ind2, grammar,5)
+    derivtreevis(ind3.derivtree, "node3")
+    derivtreevis(ind4.derivtree, "node4")
+end
+
+function test_maxdepth()
+    problem = Symbolic()
+    grammar = get_grammar(problem)
+    mda = min_depth_actions(grammar)
+    for i = 1:5
+        ind = rand(grammar, mda, 5)
+        @show max_depth(ind)
+        derivtreevis(ind.derivtree, "ind$i")
+    end
+end
+
+function test_mutate()
+    problem = Symbolic()
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    grammar = get_grammar(problem)
+    mda = min_depth_actions(grammar)
+    ind1 = rand(grammar, mda, 10) 
+    derivtreevis(ind1.derivtree, "ind1")
+    ind2 = mutate(ind1, mda, 10) 
+    derivtreevis(ind2.derivtree, "ind2")
+end
