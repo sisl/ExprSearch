@@ -1,5 +1,5 @@
 using POMDPs
-using RLESUtils, Observers
+#using RLESUtils, Observers
 import Base: getindex, setindex!, haskey
 
 # State node in the search tree
@@ -55,15 +55,13 @@ type MCTSPolicy <: POMDPs.Policy
   best_state::State
   best_at_eval::Int64
   totalevals::Int64
-  observer::Observer
 end
 # policy constructor
 function MCTSPolicy(mcts::MCTSSolver, mdp::POMDP,
                     rollout_policy=RandomPolicy(mdp, mcts.rng); # random policy is default
                     q0::Float64=0.0,
                     best_at_eval::Int64=0,
-                    totalevals::Int64=0,
-                    observer::Observer=Observer())
+                    totalevals::Int64=0)
   # pre-allocate action space
   as = actions(mdp)
   # pre-allocate the state distrbution
@@ -72,7 +70,7 @@ function MCTSPolicy(mcts::MCTSSolver, mdp::POMDP,
   a = create_action(mdp)
   best_reward = q0
   best_state = create_state(mdp)
-  return MCTSPolicy(mcts, mdp, as, s, a, d, rollout_policy, q0, best_reward, best_state, best_at_eval, totalevals, observer)
+  return MCTSPolicy(mcts, mdp, as, s, a, d, rollout_policy, q0, best_reward, best_state, best_at_eval, totalevals)
 end
 
 # for convenience - no computation is done in solve
@@ -89,15 +87,15 @@ function POMDPs.action(policy::MCTSPolicy, state::State)
   for n = 1:n_iterations
     isexplored(tree, state) && break #can't do better, exit early
 
-    @notify_observer(policy.observer, "iteration", [n])
+    #@notify_observer(policy.observer, "iteration", [n])
     simulate(policy, state, depth)
   end
   snode = tree[state]
   # find the index of action with highest q val
   i = indmax(snode.Q)
-  @notify_observer(policy.observer, "Qs", [snode.Q])
-  @notify_observer(policy.observer, "best_i", [i])
-  @notify_observer(policy.observer, "tree", [tree, state])
+  #@notify_observer(policy.observer, "Qs", [snode.Q])
+  #@notify_observer(policy.observer, "best_i", [i])
+  #@notify_observer(policy.observer, "tree", [tree, state])
   # use map to conver index to mdp action
   return snode.action_map[i]
 end
@@ -130,7 +128,7 @@ function POMDPs.simulate(policy::MCTSPolicy, state::State, depth::Int64)
     snode.explored = true
     r = reward(mdp, state)
     policy.totalevals += 1 #expr eval call
-    @notify_observer(policy.observer, "terminal_reward", [r, state])
+    #@notify_observer(policy.observer, "terminal_reward", [r, state])
     if r > policy.best_reward
       policy.best_reward = r
       copy!(policy.best_state, state)

@@ -34,7 +34,7 @@
 
 using ExprSearch, SymbolicRegression, DerivTreeVis
 using ExprSearch.GP
-using RLESUtils, Observers
+using RLESUtils, Observers, LogSystems, Loggers
 using Base.Test
 
 const DIR = dirname(@__FILE__)
@@ -56,6 +56,10 @@ const MINDEPTHBYACTION = MinDepthByAction(
     :value => Int64[1,1,2],
     :digit => Int64[1,1,1,1,1,1,1,1,1,1])
 
+"""
+Example usage:
+symbolic_gp(; seed=1)
+"""
 function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      seed=1,
                      logfileroot::AbstractString="symbolic_gp_log",
@@ -72,21 +76,26 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
 
                      gt_file::AbstractString="gt_easy.jl",
 
-                     vis::Bool=true,
-                     loginterval::Int64=100)
+                     vis::Bool=true)
     srand(seed)
     mkpath(outdir)
 
+    logsys = get_logsys()
+    empty_listeners!(logsys)
+    send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
+    logs = TaggedDFLogger()
+    send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
+        "fitness5", "parameters", "result"])
+
     problem = Symbolic(gt_file)
-    observer = Observer()
   
     gp_params = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep,
-        crossover_frac, mutate_frac, rand_frac, default_code, observer)
+        crossover_frac, mutate_frac, rand_frac, default_code)
   
     result = exprsearch(gp_params, problem)
 
-    #outfile = joinpath(outdir, "$(logfileroot).txt")
-    #save_log(outfile, logs)
+    outfile = joinpath(outdir, "$(logfileroot).txt")
+    save_log(outfile, logs)
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))

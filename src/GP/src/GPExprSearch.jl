@@ -38,14 +38,15 @@ grammar in BNF.
 """
 module GP
 
-export GPESParams, GPESResult, gp_search, exprsearch, SearchParams, SearchResult, get_derivtree
+export GPESParams, GPESResult, gp_search, exprsearch, SearchParams, SearchResult, get_derivtree, 
+    get_logsys
 export GPPopulation, GPIndividual
 export MinDepthByRule, MinDepthByAction, min_depth_rule, min_depth_actions
 export crossover, mutate, max_depth
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, TreeIterators, TreeUtils
+using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeIterators, TreeUtils
 using GrammaticalEvolution
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
@@ -65,6 +66,9 @@ immutable DepthExceededException <: Exception end
 
 const DEFAULT_EXPR = :()
 
+include("logdefs.jl")
+const LOGSYS = mk_logsys()
+
 immutable GPESParams
     pop_size::Int64
     maxdepth::Int64
@@ -75,7 +79,6 @@ immutable GPESParams
     mutate_frac::Float64
     rand_frac::Float64
     default_expr
-    observer::Observer
 end
 
 type GPESResult <: SearchResult
@@ -91,6 +94,7 @@ GPESResult(grammar::Grammar) = GPESResult(DerivationTree(DerivTreeParams(grammar
 exprsearch(p::GPESParams, problem::ExprProblem, userargs...) = gp_search(p, problem::ExprProblem, userargs...)
 
 get_derivtree(result::GPESResult) = result.tree
+get_logsys() = LOGSYS
 
 type GPIndividual
     derivtree::DerivationTree
@@ -106,8 +110,8 @@ end
 GPPopulation() = GPPopulation(Array(GPIndividual, 0))
 
 function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
-    @notify_observer(p.observer, "verbose1", ["Starting GP search"])
-    @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+    @notify_observer(LOGSYS.observer, "verbose1", ["Starting GP search"])
+    @notify_observer(LOGSYS.observer, "computeinfo", ["starttime", string(now())])
 
     grammar = get_grammar(problem)
     mdr = min_depth_rule(grammar) 
@@ -120,19 +124,37 @@ function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
     iter = 1
     tstart = CPUtime_start()
     while iter <= p.iterations
-        println("iteration $iter")
         pop = generate(p, grammar, mda, pop, result, problem, userargs...)
         ind = best_ind(pop)
-        fitness = ind.fitness 
-        expr = ind.expr 
+        fitness = get(ind.fitness)
+        code = string(ind.expr)
         nevals = iter * p.pop_size
-        @notify_observer(p.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
-        @notify_observer(p.observer, "code", Any[iter, string(code)])
-        @notify_observer(p.observer, "population", Any[iter, pop])
-        @notify_observer(p.observer, "current_best", [nevals, fitness, code])
+        @notify_observer(LOGSYS.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
+        @notify_observer(LOGSYS.observer, "fitness", Any[iter, fitness])
+        @notify_observer(LOGSYS.observer, "code", Any[iter, code])
+        @notify_observer(LOGSYS.observer, "population", Any[iter, pop])
+        @notify_observer(LOGSYS.observer, "current_best", [nevals, fitness, code])
         iter += 1
     end
     @assert result.fitness <= get(best_ind(pop).fitness)
+
+    @notify_observer(LOGSYS.observer, "result", [result.fitness, string(result.expr), 
+        result.best_at_eval, result.totalevals])
+
+    #meta info
+    @notify_observer(LOGSYS.observer, "computeinfo", ["endtime",  string(now())])
+    @notify_observer(LOGSYS.observer, "computeinfo", ["hostname", gethostname()])
+    @notify_observer(LOGSYS.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+    @notify_observer(LOGSYS.observer, "parameters", ["pop_size", p.pop_size])
+    @notify_observer(LOGSYS.observer, "parameters", ["maxdepth", p.maxdepth])
+    @notify_observer(LOGSYS.observer, "parameters", ["iterations", p.iterations])
+    @notify_observer(LOGSYS.observer, "parameters", ["tournament_size", p.tournament_size])
+    @notify_observer(LOGSYS.observer, "parameters", ["top_keep", p.top_keep])
+    @notify_observer(LOGSYS.observer, "parameters", ["crossover_frac", p.crossover_frac])
+    @notify_observer(LOGSYS.observer, "parameters", ["mutate_frac", p.mutate_frac])
+    @notify_observer(LOGSYS.observer, "parameters", ["rand_frac", p.rand_frac])
+    @notify_observer(LOGSYS.observer, "parameters", ["default_expr", string(p.default_expr)])
+
     result 
 end
 

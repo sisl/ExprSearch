@@ -35,13 +35,13 @@
 module MCTS  #ExprSearch.MCTS
 
 export MCTSESParams, MCTSESResult, mcts_search, exprsearch, SearchParams, SearchResult 
-export get_derivtree
+export get_derivtree, get_logsys
 
 include("DerivTreeMDPs.jl")
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils, Observers
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 @reexport using LinearDerivTrees  #pretty_string
 using .DerivTreeMDPs
 using GrammaticalEvolution
@@ -51,6 +51,9 @@ using JLD
 import LinearDerivTrees: get_derivtree
 import .DerivTreeMDPs.get_fitness
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+
+include("logdefs.jl")
+const LOGSYS = mk_logsys()
 
 type MCTSESParams <: SearchParams
   #tree params
@@ -67,9 +70,6 @@ type MCTSESParams <: SearchParams
   maxmod::Bool
   q0::Float64
   seed::Int64
-  mcts_observer::Observer
-
-  observer::Observer
 end
 
 type MCTSESResult <: SearchResult
@@ -84,10 +84,11 @@ end
 exprsearch(p::MCTSESParams, problem::ExprProblem, userargs...) = mcts_search(p, problem::ExprProblem, userargs...)
 
 get_derivtree(result::MCTSESResult) = get_derivtree(result.tree)
+get_logsys() = LOGSYS
 
 function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "verbose1", ["Starting MCTS search"])
-  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  @notify_observer(LOGSYS.observer, "verbose1", ["Starting MCTS search"])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = get_grammar(problem)
   tree_params = LDTParams(grammar, p.maxsteps)
@@ -98,7 +99,7 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, 
     exploration_constant=p.exploration_const, maxmod=p.maxmod, rng=MersenneTwister(p.seed))
-  policy = MCTSPolicy(solver, mdp, observer=p.mcts_observer, q0=p.q0)
+  policy = MCTSPolicy(solver, mdp, q0=p.q0)
 
   initialize!(tree)
   s = create_state(mdp)
@@ -106,34 +107,36 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
   tstart = CPUtime_start()
   i = 1
   while !GBMCTS.isexplored(policy.mcts.tree, s) && i <= p.n_iters
-    @notify_observer(p.observer, "iteration", [i])
+    @notify_observer(LOGSYS.observer, "iteration", [i])
 
     simulate(policy, s, p.searchdepth) #FIXME: remove searchdepth??
 
-    @notify_observer(p.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
-    @notify_observer(p.observer, "current_best", [i, -policy.best_reward, policy.best_state]) #report fitness
-    @notify_observer(p.observer, "mcts_tree", [i, policy.mcts.tree, s])
+    @notify_observer(LOGSYS.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
+    best_state = policy.best_state
+    @notify_observer(LOGSYS.observer, "current_best", [i, -policy.best_reward, 
+        string(best_state.past_actions), string(get_expr(best_state))]) #report fitness instead of reward
+    @notify_observer(LOGSYS.observer, "mcts_tree", [i, policy.mcts.tree, s])
 
     i += 1
   end
   best_fitness = -policy.best_reward
   expr = get_expr(policy.best_state)
   best_actions = policy.best_state.past_actions
-  @notify_observer(p.observer, "result", [best_fitness, string(expr), policy.best_at_eval, policy.totalevals])
+  @notify_observer(LOGSYS.observer, "result", [best_fitness, string(expr), policy.best_at_eval, policy.totalevals])
 
   #meta info
-  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.observer, "parameters", ["max_neg_reward", p.max_neg_reward])
-  @notify_observer(p.observer, "parameters", ["step_reward", p.step_reward])
-  @notify_observer(p.observer, "parameters", ["discount", mdp_params.discount])
-  @notify_observer(p.observer, "parameters", ["n_iters", p.n_iters])
-  @notify_observer(p.observer, "parameters", ["searchdepth", p.searchdepth])
-  @notify_observer(p.observer, "parameters", ["exploration_const", p.exploration_const])
-  @notify_observer(p.observer, "parameters", ["maxmod", p.maxmod])
-  @notify_observer(p.observer, "parameters", ["q0", p.q0])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(LOGSYS.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(LOGSYS.observer, "parameters", ["max_neg_reward", p.max_neg_reward])
+  @notify_observer(LOGSYS.observer, "parameters", ["step_reward", p.step_reward])
+  @notify_observer(LOGSYS.observer, "parameters", ["discount", mdp_params.discount])
+  @notify_observer(LOGSYS.observer, "parameters", ["n_iters", p.n_iters])
+  @notify_observer(LOGSYS.observer, "parameters", ["searchdepth", p.searchdepth])
+  @notify_observer(LOGSYS.observer, "parameters", ["exploration_const", p.exploration_const])
+  @notify_observer(LOGSYS.observer, "parameters", ["maxmod", p.maxmod])
+  @notify_observer(LOGSYS.observer, "parameters", ["q0", p.q0])
 
   return MCTSESResult(tree, best_actions, best_fitness, expr, policy.best_at_eval, policy.totalevals)
 end

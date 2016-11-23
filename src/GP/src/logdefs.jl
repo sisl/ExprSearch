@@ -32,59 +32,33 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch, SymbolicRegression, DerivTreeVis
-using ExprSearch.MCTS
-using RLESUtils, Observers, LogSystems, Loggers
-using Base.Test
+import Compat.ASCIIString
 
-const DIR = dirname(@__FILE__)
-const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+function mk_logsys()
+    logsys = LogSystem()
 
-"""
-Example usage:
-symbolic_mcts(; seed=1)
-"""
-function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCTS"),
-                     seed=1,
-                     logfileroot::AbstractString="symbolic_mcts_log",
+    register_log!(logsys, "fitness", ["iter", "fitness"], [Int64, Float64])
+    register_log!(logsys, "code", ["iter", "code"], [Int64, ASCIIString])
+    register_log!(logsys, "computeinfo", ["parameter", "value"], [ASCIIString, Any])
+    register_log!(logsys, "parameters", ["parameter", "value"], [ASCIIString, Any])
+    register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
+        [Float64, ASCIIString, Int64, Int64])
+    register_log!(logsys, "elapsed_cpu_s", ["nevals", "elapsed_cpu_s"], 
+        [Int64, Float64]) 
+    register_log!(logsys, "current_best",  ["nevals", "fitness", "expr"], 
+        [Int64, Float64, ASCIIString])
+    register_log!(logsys, "fitness5", ["iter", "fitness1", "fitness2", "fitness3",
+        "fitness4", "fitness5"], [Int64, Float64, Float64, Float64, Float64, Float64])
 
-                     n_iters::Int64=10000,
-                     searchdepth::Int64=30,
-                     explorationconst::Float64=2000.0,
-                     q0::Float64=-1000.0,
-                     maxsteps::Int64=20,
-                     max_neg_reward::Float64=-1000.0,
-                     step_reward::Float64=0.0,
-                     maxmod::Bool=false, #use the max update mod
+    register_log!(logsys, "verbose1", ["msg"], [ASCIIString])
+    register_log!(logsys, "current_best_print", ["msg"], [ASCIIString], "current_best", 
+        x->begin
+            nevals, fitness, code = x
+            code = string(code)
+            code_short = take(code, 50) |> join
+            return ["nevals: $nevals, max fitness=$(signif(fitness, 4))," *
+                         "length=$(length(code)), code=$(code_short)"]
+        end)
 
-                     gt_file::AbstractString="gt_easy.jl",
-
-                     loginterval::Int64=1000,
-                     vis::Bool=true)
-    srand(seed)
-    mkpath(outdir)
-
-    logsys = get_logsys()
-    empty_listeners!(logsys)
-    send_to!(STDOUT, logsys, ["verbose1", "result"])
-    send_to!(STDOUT, logsys, "current_best"; interval=loginterval)
-    logs = TaggedDFLogger()
-    send_to!(logs, logsys, ["computeinfo", "parameters", "result"])
-    send_to!(logs, logsys,  "current_best"; interval=loginterval)
-    send_to!(logs, logsys,  "elapsed_cpu_s"; interval=loginterval)
-
-    problem = Symbolic(gt_file)
-    mcts_params = MCTSESParams(maxsteps, max_neg_reward, step_reward, n_iters, searchdepth,
-                             explorationconst, maxmod, q0, seed)
-    result = exprsearch(mcts_params, problem)
-
-    outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
-
-    if vis
-        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
-    end
-    @show result.expr
-    return result
+    logsys
 end
-

@@ -37,11 +37,12 @@ GrammaticalEvolution
 """
 module GE
 
-export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult, get_derivtree
+export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult, get_derivtree,
+    get_logsys
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils, Observers
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 using GrammaticalEvolution
 @reexport using LinearDerivTrees  #for pretty strings
 using CPUTime
@@ -49,6 +50,9 @@ using JLD
 
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import LinearDerivTrees: get_derivtree
+
+include("logdefs.jl")
+const LOGSYS = mk_logsys()
 
 type GEESParams <: SearchParams
   #GrammaticalEvolution params
@@ -62,8 +66,6 @@ type GEESParams <: SearchParams
   mutation_rate::Float64
   default_code::Any
   max_iters::Int64
-
-  observer::Observer
 end
 
 type GEESResult <: SearchResult
@@ -79,10 +81,11 @@ end
 exprsearch(p::GEESParams, problem::ExprProblem, userargs...) = ge_search(p, problem::ExprProblem, userargs...)
 
 get_derivtree(result::GEESResult) = get_derivtree(result.tree)
+get_logsys() = LOGSYS
 
 function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "verbose1", ["Starting GE search"])
-  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  @notify_observer(LOGSYS.observer, "verbose1", ["Starting GE search"])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = get_grammar(problem)
 
@@ -96,12 +99,12 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
     fitness = pop[1].fitness #population is sorted, so first entry is the best
     code = pop[1].code
     nevals = iter * p.pop_size
-    @notify_observer(p.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
-    @notify_observer(p.observer, "fitness", Any[iter, fitness])
-    @notify_observer(p.observer, "fitness5", Any[iter, [pop[i].fitness for i = 1:5]...])
-    @notify_observer(p.observer, "code", Any[iter, string(code)])
-    @notify_observer(p.observer, "population", Any[iter, pop])
-    @notify_observer(p.observer, "current_best", [nevals, fitness, code])
+    @notify_observer(LOGSYS.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
+    @notify_observer(LOGSYS.observer, "fitness", Any[iter, fitness])
+    @notify_observer(LOGSYS.observer, "fitness5", Any[iter, [pop[i].fitness for i=1:5]...])
+    @notify_observer(LOGSYS.observer, "code", Any[iter, string(code)])
+    @notify_observer(LOGSYS.observer, "population", Any[iter, pop])
+    @notify_observer(LOGSYS.observer, "current_best", [nevals, fitness, string(code)])
     iter += 1
   end
   @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
@@ -119,22 +122,22 @@ function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
 
   @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
 
-  @notify_observer(p.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
+  @notify_observer(LOGSYS.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
   #meta info
-  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["genome_size", p.genome_size])
-  @notify_observer(p.observer, "parameters", ["pop_size", p.pop_size])
-  @notify_observer(p.observer, "parameters", ["maxwraps", p.maxwraps])
-  @notify_observer(p.observer, "parameters", ["top_keep", p.top_keep])
-  @notify_observer(p.observer, "parameters", ["top_seed", p.top_seed])
-  @notify_observer(p.observer, "parameters", ["rand_frac", p.rand_frac])
-  @notify_observer(p.observer, "parameters", ["prob_mutation", p.prob_mutation])
-  @notify_observer(p.observer, "parameters", ["mutation_rate", p.mutation_rate])
-  @notify_observer(p.observer, "parameters", ["default_code", string(p.default_code)])
-  @notify_observer(p.observer, "parameters", ["max_iters", p.max_iters])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(LOGSYS.observer, "parameters", ["genome_size", p.genome_size])
+  @notify_observer(LOGSYS.observer, "parameters", ["pop_size", p.pop_size])
+  @notify_observer(LOGSYS.observer, "parameters", ["maxwraps", p.maxwraps])
+  @notify_observer(LOGSYS.observer, "parameters", ["top_keep", p.top_keep])
+  @notify_observer(LOGSYS.observer, "parameters", ["top_seed", p.top_seed])
+  @notify_observer(LOGSYS.observer, "parameters", ["rand_frac", p.rand_frac])
+  @notify_observer(LOGSYS.observer, "parameters", ["prob_mutation", p.prob_mutation])
+  @notify_observer(LOGSYS.observer, "parameters", ["mutation_rate", p.mutation_rate])
+  @notify_observer(LOGSYS.observer, "parameters", ["default_code", string(p.default_code)])
+  @notify_observer(LOGSYS.observer, "parameters", ["max_iters", p.max_iters])
 
   return GEESResult(tree, genome, fitness, expr, best_at_eval, totalevals)
 end

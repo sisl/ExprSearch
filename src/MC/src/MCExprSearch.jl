@@ -38,12 +38,13 @@ Returns the sample with the best result.
 """
 module MC
 
-export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult, get_derivtree
+export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult, get_derivtree,
+    get_logsys
 export PMCESParams
 
 using Reexport
 using ExprSearch
-using RLESUtils, GitUtils, CPUTimeUtils, Observers
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 @reexport using LinearDerivTrees  #for pretty strings
 using GrammaticalEvolution
 using Iterators
@@ -53,23 +54,21 @@ import LinearDerivTrees: initialize!, get_derivtree
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: isless, copy!
 
+include("logdefs.jl")
+const LOGSYS = mk_logsys()
+
 type MCESParams <: SearchParams
   #tree params
   maxsteps::Int64
 
   #MC
   n_samples::Int64 #samples
-
-  observer::Observer
 end
-MCESParams(maxsteps::Int64, n_samples::Int64) = MCESParams(maxsteps, n_samples, Observer())
 
 type PMCESParams <: SearchParams
   n_threads::Int64
   mc_params::MCESParams
-  observer::Observer
 end
-PMCESParams(n_threads::Int64, mc_params::MCESParams) = PMCESParams(n_threads, mc_params, Observer())
 
 type MCState
   tree::LinearDerivTree
@@ -108,9 +107,10 @@ exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, prob
 exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
 
 get_derivtree(result::MCESResult) = get_derivtree(result.tree)
+get_logsys() = LOGSYS
 
 function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["starttime", string(now())])
   tic()
 
   results = pmap(1:p.n_threads) do tid
@@ -120,25 +120,25 @@ function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
   result = minimum(results) #best fitness
   totalevals = sum(map(r -> r.totalevals, results))
   
-  @notify_observer(p.observer, "result", [result.fitness, string(result.expr),
+  @notify_observer(LOGSYS.observer, "result", [result.fitness, string(result.expr),
      0, totalevals])
 
   #meta info
   computetime_s = toq()
-  @notify_observer(p.observer, "computeinfo", ["computetime_s",  computetime_s])
-  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
-  @notify_observer(p.observer, "parameters", ["n_samples", p.mc_params.n_samples])
-  @notify_observer(p.observer, "parameters", ["n_threads", p.n_threads])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["computetime_s",  computetime_s])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(LOGSYS.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
+  @notify_observer(LOGSYS.observer, "parameters", ["n_samples", p.mc_params.n_samples])
+  @notify_observer(LOGSYS.observer, "parameters", ["n_threads", p.n_threads])
 
   return result
 end
 
 function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.observer, "verbose1", ["Starting MC search"])
-  @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
+  @notify_observer(LOGSYS.observer, "verbose1", ["Starting MC search"])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["starttime", string(now())])
 
   grammar = get_grammar(problem)
   tree_params = LDTParams(grammar, p.maxsteps)
@@ -148,26 +148,26 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
 
   tstart = CPUtime_start()
   for i = 1:p.n_samples
-    @notify_observer(p.observer, "iteration", [i])
+    @notify_observer(LOGSYS.observer, "iteration", [i])
     ###############
     #MC algorithm
     sample!(s, problem)
     update!(result, s)
     ###############
 
-    @notify_observer(p.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
-    @notify_observer(p.observer, "current_best", [i, result.fitness, string(result.expr)])
+    @notify_observer(LOGSYS.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
+    @notify_observer(LOGSYS.observer, "current_best", [i, result.fitness, string(result.expr)])
   end
 
-  @notify_observer(p.observer, "result", [result.fitness, string(result.expr), 
+  @notify_observer(LOGSYS.observer, "result", [result.fitness, string(result.expr), 
     result.best_at_eval, result.totalevals])
 
   #meta info
-  @notify_observer(p.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.observer, "parameters", ["n_samples", p.n_samples])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["endtime",  string(now())])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["hostname", gethostname()])
+  @notify_observer(LOGSYS.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+  @notify_observer(LOGSYS.observer, "parameters", ["maxsteps", p.maxsteps])
+  @notify_observer(LOGSYS.observer, "parameters", ["n_samples", p.n_samples])
 
   return result
 end
