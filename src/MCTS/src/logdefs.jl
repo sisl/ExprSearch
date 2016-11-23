@@ -41,8 +41,6 @@ function mk_logsys()
     register_log!(logsys, "computeinfo", ["parameter", "value"], [ASCIIString, Any])
     register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
         [Float64, ASCIIString, Int64, Int64])
-    register_log!(logsys, "expression", ["raw", "pretty", "natural"], 
-        [ASCIIString, ASCIIString, ASCIIString])
 
     register_log!(logsys, "current_best",  ["iter", "fitness", "state", "expr"], 
         [Int64, Float64, ASCIIString, ASCIIString])
@@ -50,12 +48,6 @@ function mk_logsys()
         [Int64, Float64]) 
 
     register_log!(logsys, "verbose1", ["msg"], [ASCIIString])
-
-    #register_log!(logsys, "current_best_print", ["msg"], [ASCIIString], "current_best", 
-        #x->begin
-            #i, fitness, state = x
-            #["step $i: best_fitness=$fitness, best_state=$(state.past_actions)")
-        #end)
 
     logsys
 end
