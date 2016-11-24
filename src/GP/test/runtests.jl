@@ -34,27 +34,27 @@
 
 using ExprSearch, SymbolicRegression, DerivTreeVis
 using ExprSearch.GP
-using RLESUtils, Observers, LogSystems, Loggers
+using RLESUtils, LogSystems, Loggers
 using Base.Test
 
 const DIR = dirname(@__FILE__)
 const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
 
 const MINDEPTHBYRULE = MinDepthByRule(
-    :start => 3,
+    :start => 2,
     :ex => 2,
     :sum => 3,
     :product => 3,
     :value => 1,
-    :digit => 1)
+    :digit => 0)
 
 const MINDEPTHBYACTION = MinDepthByAction(
-    :start => Int64[3],
+    :start => Int64[2],
     :ex => Int64[4,4,3,2],
     :sum => Int64[3],
     :product => Int64[3],
-    :value => Int64[1,1,2],
-    :digit => Int64[1,1,1,1,1,1,1,1,1,1])
+    :value => Int64[1,1,1],
+    :digit => Int64[0,0,0,0,0,0,0,0,0,0])
 
 """
 Example usage:
@@ -107,7 +107,7 @@ end
 function test_mindepth()
     problem = Symbolic("gt_easy.jl")
     grammar = get_grammar(problem)
-    d = mindepth(grammar)
+    d = min_depth_rule(grammar)
     @test d == MINDEPTHBYRULE 
     da = min_depth_actions(d, grammar)
     @test da == MINDEPTHBYACTION

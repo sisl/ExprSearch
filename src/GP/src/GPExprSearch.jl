@@ -44,6 +44,7 @@ export GPPopulation, GPIndividual
 export MinDepthByRule, MinDepthByAction, min_depth_rule, min_depth_actions
 export crossover, mutate, max_depth
 
+import Compat.view
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeIterators, TreeUtils
@@ -201,7 +202,7 @@ function min_depth_rule(grammar::Grammar)
     end
     while any(values(changed))
         for (k,rule) in grammar.rules 
-           d_k = 1 + min_depth_rule(d, rule) 
+           d_k = min_depth_rule(d, rule) 
            changed[k] = d[k] != d_k
            d[k] = d_k 
        end
@@ -213,11 +214,11 @@ min_depth_rule(d::MinDepthByRule, rule::ReferencedRule) = d[rule.symbol]
 min_depth_rule(d::MinDepthByRule, rule::Union{RangeRule,Symbol}) = 0 #terminals
 min_depth_rule(d::MinDepthByRule, x::Any) = 0 #terminals such as constants?
 function min_depth_rule(d::MinDepthByRule, rule::OrRule)
-    minimum(map(r->min_depth_rule(d,r), rule.values))
+    1 + minimum(map(r->min_depth_rule(d,r), rule.values))
 end
 function min_depth_rule(d::MinDepthByRule, rule::ExprRule)
     a = filter(r->isa(r,ReferencedRule), rule.args)
-    maximum(map(r->min_depth_rule(d,r), a))
+    1 + maximum(map(r->min_depth_rule(d,r), a))
 end
 
 """
@@ -231,15 +232,15 @@ end
 function min_depth_actions(d::MinDepthByRule, grammar::Grammar)
     da = MinDepthByAction()
     for (k,rule) in grammar.rules
-        da[k] = 1 + min_depth_actions(d, rule)
+        da[k] = min_depth_actions(d, rule)
     end
     da
 end
 min_depth_actions(d::MinDepthByRule, rule::ReferencedRule) = Int64[d[rule.symbol]]
-min_depth_actions(d::MinDepthByRule, rule::Symbol) = zeros(Int64, 1) 
+min_depth_actions(d::MinDepthByRule, rule::Union{Symbol,Terminal}) = zeros(Int64, 1) 
 min_depth_actions(d::MinDepthByRule, rule::RangeRule) = zeros(Int64, length(rule.range))
 function min_depth_actions(d::MinDepthByRule, rule::OrRule)
-    Int64[min_depth_rule(d, v) for v in rule.values]
+    1 + Int64[min_depth_rule(d, v) for v in rule.values]
 end
 function min_depth_actions(d::MinDepthByRule, rule::ExprRule)
     Int64[min_depth_rule(d, rule)]
@@ -344,9 +345,9 @@ Best fitness wins deterministically
 """
 function selection(pop::GPPopulation, tournament_size::Int64) 
     #randomly choose N inds and compare their fitness  
-    ids = rand(1:length(pop), tournament_size)
-    #return the ind with min fitness
-    (fitness, id) = findmin(map(i->pop[i], ids))
+    ids = randperm(length(pop))
+    #sorted, just return the one with the lowest index
+    id = minimum(view(ids, 1:tournament_size)) 
     pop[id]
 end
 
@@ -464,9 +465,15 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
     while n < n_mutate
         #println("mutate: $n")
         ind1 = selection(pop, p.tournament_size)
-        ind2 = mutate(ind1, grammar, mda, p.maxdepth)
-        push!(newpop, ind2)
-        n += 1
+        try
+            ind2 = mutate(ind1, grammar, mda, p.maxdepth)
+            push!(newpop, ind2)
+            n += 1
+        catch e
+            if !isa(e, IncompleteException)
+                rethrow(e)
+            end
+        end
     end
 
     #random
@@ -478,7 +485,7 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
             push!(newpop, ind1)
             n += 1
         catch e
-            if !isa(e, DepthExceededException)
+            if !isa(e, IncompleteException)
                 rethrow(e)
             end
         end
