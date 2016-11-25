@@ -58,7 +58,7 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
     srand(seed)
     mkpath(outdir)
 
-    logsys = get_logsys()
+    logsys = MC.logsystem()
     empty_listeners!(logsys)
     send_to!(STDOUT, logsys, ["verbose1", "result"])
     send_to!(STDOUT, logsys, "current_best_print"; interval=loginterval)
@@ -68,7 +68,7 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
     send_to!(logs, logsys,  "elapsed_cpu_s"; interval=loginterval)
 
     problem = Symbolic(gt_file)
-    mc_params = MCESParams(maxsteps, n_samples)
+    mc_params = MCESParams(maxsteps, n_samples, logsys)
     result = exprsearch(mc_params, problem)
 
     outfile = joinpath(outdir, "$(logfileroot).txt")

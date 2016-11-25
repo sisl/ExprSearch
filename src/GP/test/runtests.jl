@@ -80,7 +80,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
     srand(seed)
     mkpath(outdir)
 
-    logsys = get_logsys()
+    logsys = GP.logsystem()
     empty_listeners!(logsys)
     send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
     logs = TaggedDFLogger()
@@ -90,7 +90,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
     problem = Symbolic(gt_file)
   
     gp_params = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep,
-        crossover_frac, mutate_frac, rand_frac, default_code)
+        crossover_frac, mutate_frac, rand_frac, default_code, logsys)
   
     result = exprsearch(gp_params, problem)
 

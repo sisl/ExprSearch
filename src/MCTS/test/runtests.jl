@@ -64,7 +64,7 @@ function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCT
     srand(seed)
     mkpath(outdir)
 
-    logsys = get_logsys()
+    logsys = MCTS.logsystem()
     empty_listeners!(logsys)
     send_to!(STDOUT, logsys, ["verbose1", "result"])
     send_to!(STDOUT, logsys, "current_best"; interval=loginterval)
@@ -75,7 +75,7 @@ function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCT
 
     problem = Symbolic(gt_file)
     mcts_params = MCTSESParams(maxsteps, max_neg_reward, step_reward, n_iters, searchdepth,
-                             explorationconst, maxmod, q0, seed)
+                             explorationconst, maxmod, q0, seed, logsys)
     result = exprsearch(mcts_params, problem)
 
     outfile = joinpath(outdir, "$(logfileroot).txt")

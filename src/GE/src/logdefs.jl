@@ -34,7 +34,7 @@
 
 import Compat.ASCIIString
 
-function mk_logsys()
+function logsystem()
     logsys = LogSystem()
 
     register_log!(logsys, "fitness", ["iter", "fitness"], [Int64, Float64])

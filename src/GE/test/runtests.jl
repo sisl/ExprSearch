@@ -65,7 +65,7 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
     srand(seed)
     mkpath(outdir)
 
-    logsys = get_logsys()
+    logsys = GE.logsystem()
     empty_listeners!(logsys)
     send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
     logs = TaggedDFLogger()
@@ -76,7 +76,7 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
   
     ge_params = GEESParams(genome_size, pop_size, maxwraps,
                          top_keep, top_seed, rand_frac, prob_mutation, mutation_rate, defaultcode,
-                         maxiterations)
+                         maxiterations, logsys)
   
     result = exprsearch(ge_params, problem)
 
