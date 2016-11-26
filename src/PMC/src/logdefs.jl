@@ -32,77 +32,16 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS) (no committing steps).
+import Compat.ASCIIString
 
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
-"""
-module ExprSearch
+function logsystem()
+    logsys = LogSystem()
 
-export ExprProblem, get_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+    register_log!(logsys, "parameters", ["parameter", "value"], [ASCIIString, Any])
+    register_log!(logsys, "computeinfo", ["parameter", "value"], [ASCIIString, Any])
+    register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
+        [Float64, ASCIIString, Int64, Int64])
+    register_log!(logsys, "verbose1", ["msg"], [ASCIIString])
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
-
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils, ModLoader
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
-get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-const PKGS = readdir(MODULEDIR)
-
-"""
-Test an individual submodule
-"""
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+    logsys
 end
-
-"""
-Test all submodules in modules folder.  Don't stop on error.
-"""
-function testall()
-    for pkg in PKGS
-        try
-            test(pkg)
-        catch
-            println("Error in $pkg")
-        end
-    end
-end
-
-include("GP/src/GPExprSearch.jl") #GP
-#export GP
-
-include("GE/src/GEExprSearch.jl") #GE
-#export GE
-
-include("MC/src/MCExprSearch.jl") #MC
-#export MC
-
-include("PMC/src/PMCExprSearch.jl") #MC
-#export PMC
-
-include("MCTS/src/MCTSExprSearch.jl") #MCTS without committing steps
-#export MCTS
-
-include("Ref/src/RefExprSearch.jl") #Ref
-#export Ref
-
-include("SA/src/SAExprSearch.jl") #SA
-#export SA
-
-end #module
-
-

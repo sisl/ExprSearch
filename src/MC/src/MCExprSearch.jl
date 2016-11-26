@@ -39,7 +39,6 @@ Returns the sample with the best result.
 module MC
 
 export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult, get_derivtree
-export PMCESParams
 
 using Reexport
 using ExprSearch
@@ -64,11 +63,6 @@ type MCESParams <: SearchParams
   logsys::LogSystem
 end
 MCESParams(maxsteps::Int64, n_samples::Int64) = MCESParams(maxsteps, n_samples, logsystem())
-
-type PMCESParams <: SearchParams
-  n_threads::Int64
-  mc_params::MCESParams
-end
 
 type MCState
   tree::LinearDerivTree
@@ -104,36 +98,8 @@ type MCESResult <: SearchResult
 end
 
 exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, problem, userargs...)
-exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
 
 get_derivtree(result::MCESResult) = get_derivtree(result.tree)
-
-function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
-  tic()
-
-  results = pmap(1:p.n_threads) do tid
-    mc_search(p.mc_params, problem, userargs...)
-  end
-
-  result = minimum(results) #best fitness
-  totalevals = sum(map(r -> r.totalevals, results))
-  
-  @notify_observer(p.logsys.observer, "result", [result.fitness, string(result.expr),
-     0, totalevals])
-
-  #meta info
-  computetime_s = toq()
-  @notify_observer(p.logsys.observer, "computeinfo", ["computetime_s",  computetime_s])
-  @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
-  @notify_observer(p.logsys.observer, "parameters", ["n_samples", p.mc_params.n_samples])
-  @notify_observer(p.logsys.observer, "parameters", ["n_threads", p.n_threads])
-
-  return result
-end
 
 function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.logsys.observer, "verbose1", ["Starting MC search"])

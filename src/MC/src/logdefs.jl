@@ -53,7 +53,7 @@ function logsystem()
                 iter, fitness, code = x
                 code = string(code)
                 code_short = take(code, 50) |> join
-                return ["i: $iter, fitness=$(signif(fitness, 4))," *
+                return ["i=$iter, fitness=$(signif(fitness, 4))," *
                          "length=$(length(code)), code=$(code_short)"]
             end)
 

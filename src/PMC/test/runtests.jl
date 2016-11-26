@@ -32,77 +32,54 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS) (no committing steps).
+using ExprSearch, SymbolicRegression, DerivTreeVis
+using ExprSearch.PMC
+import ExprSearch.MC
+using RLESUtils, Observers, LogSystems, Loggers
+using Base.Test
 
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
-"""
-module ExprSearch
-
-export ExprProblem, get_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
-
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
-
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils, ModLoader
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
-get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-const PKGS = readdir(MODULEDIR)
+const DIR = dirname(@__FILE__)
+const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
 
 """
-Test an individual submodule
+Example usage:
+symbolic_pmc(; seed=1)
 """
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
-end
+function symbolic_pmc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_PMC"),
+                     seed=1,
+                     logfileroot::AbstractString="symbolic_pmc_log",
 
-"""
-Test all submodules in modules folder.  Don't stop on error.
-"""
-function testall()
-    for pkg in PKGS
-        try
-            test(pkg)
-        catch
-            println("Error in $pkg")
-        end
+                     n_threads::Int64=1,
+                     maxsteps::Int64=40,
+                     n_samples::Int64=10000,
+
+                     gt_file::AbstractString="gt_easy.jl",
+
+                     loginterval::Int64=1000,
+                     vis::Bool=true)
+    srand(seed)
+    mkpath(outdir)
+
+    logsys = MC.logsystem()
+    send_to!(STDOUT, logsys, "current_best_print"; interval=loginterval)
+
+    plogsys = PMC.logsystem()
+    send_to!(STDOUT, plogsys, ["verbose1", "result"])
+    logs = TaggedDFLogger()
+    send_to!(logs, plogsys, ["computeinfo", "parameters", "result"])
+
+    problem = Symbolic(gt_file)
+    mc_params = MCESParams(maxsteps, n_samples, logsys)
+    pmc_params = PMCESParams(n_threads, mc_params, plogsys)
+    result = exprsearch(pmc_params, problem)
+
+    outfile = joinpath(outdir, "$(logfileroot).txt")
+    save_log(outfile, logs)
+
+    if vis
+        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
     end
+    @show result.expr
+    return result
 end
-
-include("GP/src/GPExprSearch.jl") #GP
-#export GP
-
-include("GE/src/GEExprSearch.jl") #GE
-#export GE
-
-include("MC/src/MCExprSearch.jl") #MC
-#export MC
-
-include("PMC/src/PMCExprSearch.jl") #MC
-#export PMC
-
-include("MCTS/src/MCTSExprSearch.jl") #MCTS without committing steps
-#export MCTS
-
-include("Ref/src/RefExprSearch.jl") #Ref
-#export Ref
-
-include("SA/src/SAExprSearch.jl") #SA
-#export SA
-
-end #module
-
 

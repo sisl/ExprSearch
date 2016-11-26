@@ -33,76 +33,54 @@
 # *****************************************************************************
 
 """
-Grammar-Based Expression Search.
-Available algorithms: Simulated Annealing (SA), Monte Carlo (MC), Grammatical Evolution (GE),
-Monte Carlo Tree Search (MCTS) (no committing steps).
-
-Usage: using ExprSearch.MC; result = exprsearch(p, problem)
+Parallel Monte Carlo search by drawing uniform samples from the root of the grammar.
+Returns the sample with the best result.  
 """
-module ExprSearch
+module PMC
 
-export ExprProblem, get_grammar, get_fitness
-export SearchParams, SearchResult, exprsearch
+export PMCESParams, MCESParams, get_derivtree
 
-const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
+using ExprSearch
+using ExprSearch.MC
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 
-using Reexport
-@reexport using GrammaticalEvolution
-using RLESUtils, ModLoader
+import ExprSearch: SearchParams, exprsearch, ExprProblem
 
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
+include("logdefs.jl")
 
-get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
-get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
-
-load_to_path(MODULEDIR)
-const PKGS = readdir(MODULEDIR)
-
-"""
-Test an individual submodule
-"""
-function test(pkgs::AbstractString...; coverage::Bool=false)
-  cd(() -> Pkg.Entry.test(AbstractString[pkgs...]; coverage=coverage), MODULEDIR)
+type PMCESParams <: SearchParams
+    n_threads::Int64
+    mc_params::MCESParams
+    logsys::LogSystem
 end
 
-"""
-Test all submodules in modules folder.  Don't stop on error.
-"""
-function testall()
-    for pkg in PKGS
-        try
-            test(pkg)
-        catch
-            println("Error in $pkg")
-        end
+exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
+
+function pmc_search(p::PMCESParams, problem::ExprProblem, userargs...)
+    @notify_observer(p.logsys.observer, "verbose1", ["Starting PMC Search..."])
+    @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
+
+    tic()
+    results = pmap(1:p.n_threads) do tid
+        mc_search(p.mc_params, problem, userargs...)
     end
+    result = minimum(results) #best fitness
+    totalevals = sum(map(r -> r.totalevals, results))
+    
+    @notify_observer(p.logsys.observer, "result", [result.fitness, string(result.expr),
+        0, totalevals])
+
+    #meta info
+    computetime_s = toq()
+    @notify_observer(p.logsys.observer, "computeinfo", ["computetime_s",  computetime_s])
+    @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
+    @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
+    @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+    @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.mc_params.maxsteps])
+    @notify_observer(p.logsys.observer, "parameters", ["n_samples", p.mc_params.n_samples])
+    @notify_observer(p.logsys.observer, "parameters", ["n_threads", p.n_threads])
+
+  return result
 end
-
-include("GP/src/GPExprSearch.jl") #GP
-#export GP
-
-include("GE/src/GEExprSearch.jl") #GE
-#export GE
-
-include("MC/src/MCExprSearch.jl") #MC
-#export MC
-
-include("PMC/src/PMCExprSearch.jl") #MC
-#export PMC
-
-include("MCTS/src/MCTSExprSearch.jl") #MCTS without committing steps
-#export MCTS
-
-include("Ref/src/RefExprSearch.jl") #Ref
-#export Ref
-
-include("SA/src/SAExprSearch.jl") #SA
-#export SA
 
 end #module
-
-
