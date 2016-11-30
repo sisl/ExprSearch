@@ -55,46 +55,46 @@ import Base: isless, copy!
 include("logdefs.jl")
 
 type MCESParams <: SearchParams
-  #tree params
-  maxsteps::Int64
+    #tree params
+    maxsteps::Int64
 
-  #MC
-  n_samples::Int64 #samples
-  logsys::LogSystem
+    #MC
+    n_samples::Int64 #samples
+    logsys::LogSystem
 end
 MCESParams(maxsteps::Int64, n_samples::Int64) = MCESParams(maxsteps, n_samples, logsystem())
 
 type MCState
-  tree::LinearDerivTree
-  fitness::Float64
-  expr
+    tree::LinearDerivTree
+    fitness::Float64
+    expr
 end
 
 MCState(tree::LinearDerivTree) = MCState(tree, realmax(Float64), 0)
 
 type MCESResult <: SearchResult
-  tree::LinearDerivTree
-  actions::Vector{Int64}
-  fitness::Float64
-  expr
-  best_at_eval::Int64
-  totalevals::Int64
+    tree::LinearDerivTree
+    actions::Vector{Int64}
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
+    
+    function MCESResult()
+        result = new()
+        result.actions = Int64[]
+        result.fitness = realmax(Float64)
+        result.expr = 0
+        result.best_at_eval = 0
+        result.totalevals = 0
+        result
+    end
 
-  function MCESResult()
-    result = new()
-    result.actions = Int64[]
-    result.fitness = realmax(Float64)
-    result.expr = 0
-    result.best_at_eval = 0
-    result.totalevals = 0
-    return result
-  end
-
-  function MCESResult(tree::LinearDerivTree)
-    result = MCESResult()
-    result.tree = tree
-    return result
-  end
+    function MCESResult(tree::LinearDerivTree)
+        result = MCESResult()
+        result.tree = tree
+        result
+    end
 end
 
 exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, problem, userargs...)
@@ -102,78 +102,77 @@ exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, prob
 get_derivtree(result::MCESResult) = get_derivtree(result.tree)
 
 function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.logsys.observer, "verbose1", ["Starting MC search"])
-  @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
+    @notify_observer(p.logsys.observer, "verbose1", ["Starting MC search"])
+    @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
+    
+    grammar = get_grammar(problem)
+    tree_params = LDTParams(grammar, p.maxsteps)
 
-  grammar = get_grammar(problem)
-  tree_params = LDTParams(grammar, p.maxsteps)
+    s = MCState(LinearDerivTree(tree_params))
+    result = MCESResult(LinearDerivTree(tree_params))
 
-  s = MCState(LinearDerivTree(tree_params))
-  result = MCESResult(LinearDerivTree(tree_params))
+    tstart = CPUtime_start()
+    for i = 1:p.n_samples
+        @notify_observer(p.logsys.observer, "iteration", [i])
+        ###############
+        #MC algorithm
+        sample!(s, problem)
+        update!(result, s)
+        ###############
 
-  tstart = CPUtime_start()
-  for i = 1:p.n_samples
-    @notify_observer(p.logsys.observer, "iteration", [i])
-    ###############
-    #MC algorithm
-    sample!(s, problem)
-    update!(result, s)
-    ###############
+        @notify_observer(p.logsys.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
+        @notify_observer(p.logsys.observer, "current_best", [i, result.fitness, string(result.expr)])
+    end
+    @notify_observer(p.logsys.observer, "result", [result.fitness, string(result.expr), 
+        result.best_at_eval, result.totalevals])
 
-    @notify_observer(p.logsys.observer, "elapsed_cpu_s", [i, CPUtime_elapsed_s(tstart)])
-    @notify_observer(p.logsys.observer, "current_best", [i, result.fitness, string(result.expr)])
-  end
+    #meta info
+    @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
+    @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
+    @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+    @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
+    @notify_observer(p.logsys.observer, "parameters", ["n_samples", p.n_samples])
 
-  @notify_observer(p.logsys.observer, "result", [result.fitness, string(result.expr), 
-    result.best_at_eval, result.totalevals])
-
-  #meta info
-  @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
-  @notify_observer(p.logsys.observer, "parameters", ["n_samples", p.n_samples])
-
-  return result
+    result
 end
 
 #initialize to random state
 function sample!(s::MCState, problem::ExprProblem, retries::Int64=typemax(Int64))
-  rand_with_retry!(s.tree, retries) #sample uniformly
-  s.expr = get_expr(s.tree)
-  s.fitness = get_fitness(problem, s.expr)
-  s
+    rand_with_retry!(s.tree, retries) #sample uniformly
+    s.expr = get_expr(s.tree)
+    s.fitness = get_fitness(problem, s.expr)
+    s
 end
 
 #update the global best trackers with the current state
 function update!(result::MCESResult, s::MCState)
-  result.totalevals += 1 #assumes an eval was called prior
+    result.totalevals += 1 #assumes an eval was called prior
 
-  #update globals
-  if s.fitness < result.fitness
-    copy!(result.tree, s.tree)
-    resize!(result.actions, length(s.tree.actions))
-    result.actions = convert(Array, s.tree.actions)
-    result.fitness = s.fitness
-    result.expr = s.expr
-    result.best_at_eval = result.totalevals
-  end
+    #update globals
+    if s.fitness < result.fitness
+        copy!(result.tree, s.tree)
+        resize!(result.actions, length(s.tree.actions))
+        result.actions = convert(Array, s.tree.actions)
+        result.fitness = s.fitness
+        result.expr = s.expr
+        result.best_at_eval = result.totalevals
+    end
 end
 
 isless(r1::MCESResult, r2::MCESResult) = r1.fitness < r2.fitness
 
 function copy!(dst::MCState, src::MCState)
-  copy!(dst.tree, src.tree)
-  dst.fitness = src.fitness
-  dst.expr = src.expr
+    copy!(dst.tree, src.tree)
+    dst.fitness = src.fitness
+    dst.expr = src.expr
 end
 
 type MCESResultSerial <: SearchResult
-  actions::Vector{Int64}
-  fitness::Float64
-  expr
-  best_at_eval::Int64
-  totalevals::Int64
+    actions::Vector{Int64}
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
 end
 #don't store the tree to JLD, it's too big and causes stackoverflowerror
 function JLD.writeas(r::MCESResult)

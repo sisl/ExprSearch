@@ -107,7 +107,7 @@ empty!(stack::Stack) = empty!(stack.store)
 function copy!(dst::LinearDerivTree, src::LinearDerivTree)
     dst.params = src.params
     copy!(dst.derivtree, src.derivtree)
-    dst.opennodes = src.opennodes
+    dst.opennodes = deepcopy(src.opennodes)
     copy!(dst.actions, src.actions)
     dst.observer = src.observer 
     dst

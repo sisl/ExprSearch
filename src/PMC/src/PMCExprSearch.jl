@@ -53,6 +53,7 @@ type PMCESParams <: SearchParams
     mc_params::MCESParams
     logsys::LogSystem
 end
+PMCESParams(n_threads::Int64, mc_params::MCESParams) = PMCESParams(n_threads, mc_params, logsystem())
 
 exprsearch(p::PMCESParams, problem::ExprProblem, userargs...) = pmc_search(p, problem, userargs...)
 

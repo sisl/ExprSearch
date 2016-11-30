@@ -304,7 +304,11 @@ Base.length(rule::Rule) = 1
 
 function copy!(dst::DerivationTree, src::DerivationTree)
     initialize!(dst)
+    dst.params = src.params
     copy!(dst.root, src.root, dst.nodepool)
+    dst.nopen = src.nopen
+    dst.maxactions = src.maxactions
+    dst.nodepool = src.nodepool
 end
 
 function copy!(dst::DerivTreeNode, src::DerivTreeNode, nodepool::MemPool{DerivTreeNode})

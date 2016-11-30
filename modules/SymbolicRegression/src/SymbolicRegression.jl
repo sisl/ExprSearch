@@ -37,7 +37,7 @@ Symbolic regression expression search problem.
 """
 module SymbolicRegression
 
-export Symbolic, create_grammar, get_fitness
+export Symbolic, create_grammar, get_grammar, get_fitness
 
 using ExprSearch
 import ExprSearch: ExprProblem, get_fitness, get_grammar
