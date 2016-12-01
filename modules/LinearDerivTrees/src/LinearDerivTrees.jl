@@ -40,8 +40,8 @@ module LinearDerivTrees
 
 export Grammar
 export LDTParams, LDTActions, LinearDerivTree, AbstractTreeOrder, DepthFirst, BreadthFirst  
-export initialize!, step!, play!, actionspace, isdone, iscomplete, get_derivtree
-export rand_with_retry!, maxlength 
+export initialize!, step!, play!, actionspace, isdone, iscomplete, get_derivtree, get_expr
+export rand_with_retry!, maxlength
 
 using Reexport
 using ExprSearch 
@@ -52,6 +52,7 @@ using RLESUtils, Observers
 
 import GrammaticalEvolution.Grammar
 import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string
+import ExprSearch: get_derivtree
 import Base: length, push!, convert, rand!, getindex, empty!, copy!
 
 const STACKSIZE = 50 #initial stack allocation size, default value 1024 allocates too much unused memory

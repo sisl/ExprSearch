@@ -47,6 +47,9 @@ import Compat.view
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeIterators, TreeUtils
+import RLESTypes.SymbolTable
+import DerivationTrees.get_children
+import ExprSearch: get_derivtree, get_expr
 using GrammaticalEvolution
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
@@ -56,7 +59,8 @@ using DerivTreeVis
 
 import DerivationTrees: initialize!, max_depth
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
-import Base: copy!, sort!, isless, resize!, empty!, push!, length, start, next, done, rand, getindex
+import Base: copy!, sort!, isless, resize!, empty!, push!, pop!, length, start, next, done, 
+    rand, getindex
 
 typealias MinDepthByRule Dict{Symbol,Int64}
 typealias MinDepthByAction Dict{Symbol,Vector{Int64}}
@@ -68,7 +72,7 @@ const DEFAULT_EXPR = :()
 
 include("logdefs.jl")
 
-immutable GPESParams
+immutable GPESParams <: SearchParams
     pop_size::Int64
     maxdepth::Int64
     iterations::Int64
@@ -79,25 +83,29 @@ immutable GPESParams
     rand_frac::Float64
     default_expr
     logsys::LogSystem
+    userargs::SymbolTable #passed to get_fitness if specified
 end
 GPESParams(pop_size::Int64, maxdepth::Int64, iterations::Int64, tournament_size::Int64, 
     top_keep::Float64, crossover_frac::Float64, mutate_frac::Float64, rand_frac::Float64,
-    default_expr) = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep, 
-    crossover_frac, mutate_frac, rand_frac, default_expr, logsystem())
+    default_expr, logsys::LogSystem=logsystem(); userargs::SymbolTable=SymbolTable()) = 
+        GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep, 
+        crossover_frac, mutate_frac, rand_frac, default_expr, logsys, userargs)
 
 type GPESResult <: SearchResult
-  tree::DerivationTree
-  fitness::Float64
-  expr
-  best_at_eval::Int64
-  totalevals::Int64
+    tree::DerivationTree
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
 end
 GPESResult(grammar::Grammar) = GPESResult(DerivationTree(DerivTreeParams(grammar)), realmax(Float64),
     DEFAULT_EXPR, 0, 0)
 
-exprsearch(p::GPESParams, problem::ExprProblem, userargs...) = gp_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::GPESParams, problem::ExprProblem) = gp_search(p, problem::ExprProblem)
 
 get_derivtree(result::GPESResult) = result.tree
+get_expr(result::GPESResult) = result.expr
+get_fitness(result::GPESResult) = result.fitness
 
 type GPIndividual
     derivtree::DerivationTree
@@ -112,7 +120,7 @@ type GPPopulation
 end
 GPPopulation() = GPPopulation(Array(GPIndividual, 0))
 
-function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
+function gp_search(p::GPESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting GP search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
@@ -127,7 +135,7 @@ function gp_search(p::GPESParams, problem::ExprProblem, userargs...)
     iter = 1
     tstart = CPUtime_start()
     while iter <= p.iterations
-        pop = generate(p, grammar, mda, pop, result, problem, userargs...)
+        pop = generate(p, grammar, mda, pop, result, problem)
         ind = best_ind(pop)
         fitness = get(ind.fitness)
         code = string(ind.expr)
@@ -179,6 +187,7 @@ function resize!(pop::GPPopulation, N::Int64)
     resize!(pop.individuals, N)
 end
 
+pop!(pop::GPPopulation) = pop!(pop.individuals)
 push!(pop::GPPopulation, ind::GPIndividual) = push!(pop.individuals, ind)
 empty!(pop::GPPopulation) = empty!(pop.individuals)
 length(pop::GPPopulation) = length(pop.individuals)
@@ -274,6 +283,7 @@ function resample_subtree!(tree::DerivationTree, node::DerivTreeNode, mda::MinDe
     target_depth::Int64)
     rm_node(tree, node.children) #return child nodes
     opennodes = DerivTreeNode[node]
+    tree.nopen = 1
     rand_subtree!(tree, node, opennodes, mda, target_depth) 
 end
 
@@ -312,19 +322,19 @@ end
 """
 Evaluate fitness function
 """
-function evaluate!(pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
-    default_expr, userargs...)
+function evaluate!(p::GPESParams, pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
+    default_expr)
     for ind in pop
         if isnull(ind.fitness)
             try
                 #derivtreevis(ind.derivtree, "myderivationtree")
                 ind.expr = get_expr(ind.derivtree)
-                fitness = get_fitness(problem, ind.expr, userargs...)
+                fitness = get_fitness(problem, ind.expr, p.userargs)
                 ind.fitness = Nullable{Float64}(fitness) 
                 result.totalevals += 1
                 if fitness < result.fitness
                     result.fitness = fitness
-                    result.tree = ind.derivtree
+                    copy!(result.tree, ind.derivtree)
                     result.best_at_eval = result.totalevals
                     result.expr = ind.expr
                 end
@@ -339,8 +349,6 @@ function evaluate!(pop::GPPopulation, result::GPESResult, problem::ExprProblem,
     end
 end
 
-TreeUtils.get_children(node::DerivTreeNode) = DerivationTrees.get_children(node)
-
 """
 Tournament selection
 Best fitness wins deterministically
@@ -352,6 +360,8 @@ function selection(pop::GPPopulation, tournament_size::Int64)
     id = minimum(view(ids, 1:tournament_size)) 
     pop[id]
 end
+
+TreeUtils.get_children(node::DerivTreeNode) = DerivationTrees.get_children(node)
 
 function findbyrule(ind::GPIndividual, name::AbstractString)
     candidates = DerivTreeNode[]
@@ -400,25 +410,22 @@ end
 """
 Adjust to target pop_size
 """
-function adjust_to_size!(newpop::GPPopulation, pop::GPPopulation, pop_size::Int64, 
-    tournament_size::Int64)
+function adjust_to_size!(newpop::GPPopulation, pop::GPPopulation, grammar::Grammar, 
+    pop_size::Int64, tournament_size::Int64)
     #reproduce if undersize
     while length(newpop) < pop_size
         ind1 = selection(pop, tournament_size)
-        push!(newpop, ind1)
+        ind2 = GPIndividual(grammar)
+        copy!(ind2, ind1)
+        push!(newpop, ind2)
     end
     
     #trim to size
-    resize!(newpop, pop_size)
-    newpop
-end
-
-function copy!(dst::GPPopulation, doffset::Int64, src::GPPopulation, soffset::Int64, N::Int64)
-    len = doffset + N - 1
-    if length(dst) < len #resize up if needed, but not down
-        resize!(dst, len)
+    while length(newpop) > pop_size
+        ind = pop!(newpop)
+        rm_tree!(ind.derivtree)
     end
-    copy!(dst.individuals, doffset, src.individuals, soffset, N)
+    newpop
 end
 
 function sort!(pop::GPPopulation) #lowest (best) fitness first
@@ -429,7 +436,7 @@ end
 Create next generation
 """
 function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction, 
-    pop::GPPopulation, result::GPESResult, problem::ExprProblem, userargs...)
+    pop::GPPopulation, result::GPESResult, problem::ExprProblem)
 
     #println("enter generate")
     n_keep = floor(Int64, p.top_keep*p.pop_size)
@@ -437,12 +444,16 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
     n_mutate = floor(Int64, p.mutate_frac*p.pop_size)
     n_rand = floor(Int64, p.rand_frac*p.pop_size)
 
-    evaluate!(pop, result, problem, p.default_expr, userargs...)
+    evaluate!(p, pop, result, problem, p.default_expr)
     sort!(pop)
     newpop = GPPopulation()
 
     #pass through the top ones
-    copy!(newpop, 1, pop, 1, n_keep)
+    for i = 1:n_keep
+        ind1 = GPIndividual(grammar)
+        copy!(ind1, pop[i])
+        push!(newpop, ind1)
+    end
     
     #crossover
     n = 0
@@ -494,12 +505,29 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
     end
 
     #adjust size: trim or reproduce to size
-    adjust_to_size!(newpop, pop, p.pop_size, p.tournament_size)
+    adjust_to_size!(newpop, pop, grammar, p.pop_size, p.tournament_size)
 
-    evaluate!(newpop, result, problem, p.default_expr, userargs...)
+    #dealloc old pop
+    for ind in pop
+        rm_tree!(ind.derivtree)
+    end
+
+    evaluate!(p, newpop, result, problem, p.default_expr)
     sort!(newpop)
 
     newpop
+end
+
+type GPESResultSerial <: SearchResult
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
+end
+
+#don't store the tree to JLD, it's too big and causes stackoverflowerror
+function JLD.writeas(r::GPESResult)
+    GPESResultSerial(r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

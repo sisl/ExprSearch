@@ -38,13 +38,14 @@ Warning: not all rules are supported
 """
 module DerivationTrees
 
-export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, TerminalRule, get_expr, maxlength
-export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, is_terminal
-export swap_children!, max_depth, rm_node
+export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, TerminalRule, get_expr,
+    maxlength, get_children
+export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, is_terminal,    
+    swap_children!, max_depth, rm_tree!, rm_node, count_leafs, count_nonleafs
 export IncompleteException
 
 import Compat.ASCIIString
-using RLESUtils, MemPools, TreeIterators
+using RLESUtils, MemPools, TreeIterators, TreeUtils
 using Reexport
 @reexport using GrammaticalEvolution
 
@@ -118,6 +119,10 @@ function mk_node(tree::DerivationTree)
     node
 end
 
+function rm_tree!(tree::DerivationTree)
+    rm_node(tree, [tree.root])
+end
+
 function rm_node(tree::DerivationTree, nodes::Vector{DerivTreeNode})
     return_to_pool(tree.nodepool, nodes)
     nothing
@@ -150,6 +155,7 @@ expand_node!(tree::DerivationTree, node::DerivTreeNode, a::Int64) =
 ### expand_node! nonterminals
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::OrRule, a::Int64)
     tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
     node.action = a
     node.cmd = rule.name
     idx = ((a - 1) % length(rule.values)) + 1 #1-indexed
@@ -169,6 +175,7 @@ end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedRule, a::Int64)
     tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
     node.cmd = rule.name
     reps = ((a - 1) % length(rule.range)) + rule.range.start
     for i = 1:reps
@@ -193,6 +200,7 @@ end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
     tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
     node.cmd = rule.name
     for arg in rule.args
         if isa(arg, Rule)
@@ -210,12 +218,14 @@ end
 ### Terminals
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RangeRule, a::Int64)
     tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
     node.action = a
     EMPTYARRAY #use a pre-allocated empty array
 end
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::Terminal)
     tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
     EMPTYARRAY #use a pre-allocated empty array
 end
 
@@ -334,6 +344,10 @@ end
 
 max_depth(tree::DerivationTree) = max_depth(tree.root)
 max_depth(node::DerivTreeNode) = traverse(x->x.depth, (x,y)->max(x,y), node)
+
+count_leafs(tree::DerivationTree) = count_nodes(isleaf, tree.root)
+count_nonleafs(tree::DerivationTree) = count_nodes(x->!isleaf(x), tree.root)
+length(tree::DerivationTree) = count_nodes(tree.root)
 
 
 #= """ =#

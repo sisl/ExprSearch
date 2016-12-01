@@ -42,13 +42,14 @@ export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
+import RLESTypes.SymbolTable
 using GrammaticalEvolution
 @reexport using LinearDerivTrees  #for pretty strings
 using CPUTime
 using JLD
 
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
-import LinearDerivTrees: get_derivtree
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
+    get_derivtree, get_expr
 
 include("logdefs.jl")
 
@@ -65,119 +66,123 @@ type GEESParams <: SearchParams
   default_code::Any
   max_iters::Int64
   logsys::LogSystem
+  userargs::SymbolTable
 end
 GEESParams(genome_size::Int64, pop_size::Int64, maxwraps::Int64, top_keep::Float64,
     top_seed::Float64, rand_frac::Float64, prob_mutation::Float64, mutation_rate::Float64,
-    default_code::Any, max_iters::Int64) = GEESParams(genome_size, pop_size, maxwraps,
-    top_keep, top_seed, rand_frac, prob_mutation, mutation_Rate, default_code, max_iters,
-    logsystem())
+    default_code::Any, max_iters::Int64, logsys::LogSystem=logsystem(); 
+    userargs::SymbolTable=SymbolTable()) = 
+        GEESParams(genome_size, pop_size, maxwraps, top_keep, top_seed, rand_frac, 
+        prob_mutation, mutation_rate, default_code, max_iters, logsys, userargs)
 
 type GEESResult <: SearchResult
-  tree::LinearDerivTree
-  genome::Vector{Int64}
-  fitness::Float64
-  expr
-  best_at_eval::Int64
-  totalevals::Int64
+    tree::LinearDerivTree
+    genome::Vector{Int64}
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
 end
 
-#FIXME: don't pass userargs to get_fitness like this...
-exprsearch(p::GEESParams, problem::ExprProblem, userargs...) = ge_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::GEESParams, problem::ExprProblem) = ge_search(p, problem::ExprProblem)
 
 get_derivtree(result::GEESResult) = get_derivtree(result.tree)
+get_expr(result::GEESResult) = result.expr
+get_fitness(result::GEESResult) = result.fitness
 
-function ge_search(p::GEESParams, problem::ExprProblem, userargs...)
-  @notify_observer(p.logsys.observer, "verbose1", ["Starting GE search"])
-  @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
+function ge_search(p::GEESParams, problem::ExprProblem)
+    @notify_observer(p.logsys.observer, "verbose1", ["Starting GE search"])
+    @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
-  grammar = get_grammar(problem)
+    grammar = get_grammar(problem)
 
-  pop = ExamplePopulation(p.pop_size, p.genome_size)
-  fitness = realmax(Float64)
-  iter = 1
-  tstart = CPUtime_start()
-  while iter <= p.max_iters
-    pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
-        p.mutation_rate, p, problem::ExprProblem, userargs...)
-    fitness = pop[1].fitness #population is sorted, so first entry is the best
-    code = pop[1].code
-    nevals = iter * p.pop_size
-    @notify_observer(p.logsys.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
-    @notify_observer(p.logsys.observer, "fitness", Any[iter, fitness])
-    @notify_observer(p.logsys.observer, "fitness5", Any[iter, [pop[i].fitness for i=1:5]...])
-    @notify_observer(p.logsys.observer, "code", Any[iter, string(code)])
-    @notify_observer(p.logsys.observer, "population", Any[iter, pop])
-    @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, string(code)])
-    iter += 1
-  end
-  @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
+    pop = ExamplePopulation(p.pop_size, p.genome_size)
+    fitness = realmax(Float64)
+    iter = 1
+    tstart = CPUtime_start()
+    while iter <= p.max_iters
+        pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
+            p.mutation_rate, p, problem::ExprProblem)
+        fitness = pop[1].fitness #population is sorted, so first entry is the best
+        code = pop[1].code
+        nevals = iter * p.pop_size
+        @notify_observer(p.logsys.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
+        @notify_observer(p.logsys.observer, "fitness", Any[iter, fitness])
+        @notify_observer(p.logsys.observer, "fitness5", Any[iter, [pop[i].fitness for i=1:5]...])
+        @notify_observer(p.logsys.observer, "code", Any[iter, string(code)])
+        @notify_observer(p.logsys.observer, "population", Any[iter, pop])
+        @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, string(code)])
+        iter += 1
+    end
+    @assert pop.best_ind.fitness == pop.best_fitness <= pop[1].fitness
 
-  fitness = pop.best_fitness
-  ind = pop.best_ind
-  genome = ind.genome
-  expr = ind.code
-  best_at_eval = pop.best_at_eval
-  totalevals = pop.totalevals
+    fitness = pop.best_fitness
+    ind = pop.best_ind
+    genome = ind.genome
+    expr = ind.code
+    best_at_eval = pop.best_at_eval
+    totalevals = pop.totalevals
 
-  tree_params = LDTParams(grammar, length(ind.genome))
-  tree = LinearDerivTree(tree_params)
-  play!(tree, ind)
+    tree_params = LDTParams(grammar, length(ind.genome))
+    tree = LinearDerivTree(tree_params)
+    play!(tree, ind)
 
-  @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
+    @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
+    
+    @notify_observer(p.logsys.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
 
-  @notify_observer(p.logsys.observer, "result", [fitness, string(expr), best_at_eval, totalevals])
+    #meta info
+    @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
+    @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
+    @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+    @notify_observer(p.logsys.observer, "parameters", ["genome_size", p.genome_size])
+    @notify_observer(p.logsys.observer, "parameters", ["pop_size", p.pop_size])
+    @notify_observer(p.logsys.observer, "parameters", ["maxwraps", p.maxwraps])
+    @notify_observer(p.logsys.observer, "parameters", ["top_keep", p.top_keep])
+    @notify_observer(p.logsys.observer, "parameters", ["top_seed", p.top_seed])
+    @notify_observer(p.logsys.observer, "parameters", ["rand_frac", p.rand_frac])
+    @notify_observer(p.logsys.observer, "parameters", ["prob_mutation", p.prob_mutation])
+    @notify_observer(p.logsys.observer, "parameters", ["mutation_rate", p.mutation_rate])
+    @notify_observer(p.logsys.observer, "parameters", ["default_code", string(p.default_code)])
+    @notify_observer(p.logsys.observer, "parameters", ["max_iters", p.max_iters])
 
-  #meta info
-  @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
-  @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
-  @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
-  @notify_observer(p.logsys.observer, "parameters", ["genome_size", p.genome_size])
-  @notify_observer(p.logsys.observer, "parameters", ["pop_size", p.pop_size])
-  @notify_observer(p.logsys.observer, "parameters", ["maxwraps", p.maxwraps])
-  @notify_observer(p.logsys.observer, "parameters", ["top_keep", p.top_keep])
-  @notify_observer(p.logsys.observer, "parameters", ["top_seed", p.top_seed])
-  @notify_observer(p.logsys.observer, "parameters", ["rand_frac", p.rand_frac])
-  @notify_observer(p.logsys.observer, "parameters", ["prob_mutation", p.prob_mutation])
-  @notify_observer(p.logsys.observer, "parameters", ["mutation_rate", p.mutation_rate])
-  @notify_observer(p.logsys.observer, "parameters", ["default_code", string(p.default_code)])
-  @notify_observer(p.logsys.observer, "parameters", ["max_iters", p.max_iters])
-
-  return GEESResult(tree, genome, fitness, expr, best_at_eval, totalevals)
+    GEESResult(tree, genome, fitness, expr, best_at_eval, totalevals)
 end
 
-function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, pop::ExamplePopulation, p::GEESParams, problem::ExprProblem, userargs...)
-  try
-    ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
-    ind.fitness = get_fitness(problem, ind.code, userargs...)
-    pop.totalevals += 1
-    if ind.fitness < pop.best_fitness
-      pop.best_fitness = ind.fitness
-      pop.best_ind = ind
-      pop.best_at_eval = pop.totalevals
+function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, 
+    pop::ExamplePopulation, p::GEESParams, problem::ExprProblem)
+    try
+        ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
+        ind.fitness = get_fitness(problem, ind.code, p.userargs)
+        pop.totalevals += 1
+        if ind.fitness < pop.best_fitness
+            pop.best_fitness = ind.fitness
+            pop.best_ind = ind
+            pop.best_at_eval = pop.totalevals
+        end
+    catch e
+        if !isa(e, MaxWrapException)
+            s = take(string(e), 50) |> join
+            println("exception = $s")
+            s = take(string(ind.code), 50) |> join
+            len = length(string(ind.code))
+            println("length=$len, code: $(s)")
+            f = open("errorlog.txt", "a") #log to file
+            println(f, typeof(e))
+            println(f, string(ind.code))
+            close(f)
+        end
+        ind.code = p.default_code
+        ind.fitness = realmax(Float64)
     end
-  catch e
-    if !isa(e, MaxWrapException)
-      s = take(string(e), 50) |> join
-      println("exception = $s")
-      s = take(string(ind.code), 50) |> join
-      len = length(string(ind.code))
-      println("length=$len, code: $(s)")
-      f = open("errorlog.txt", "a") #log to file
-      println(f, typeof(e))
-      println(f, string(ind.code))
-      close(f)
-    end
-    ind.code = p.default_code
-    ind.fitness = realmax(Float64)
-  end
 end
 
 type GEESResultSerial <: SearchResult
-  genome::Vector{Int64}
-  fitness::Float64
-  expr
-  best_at_eval::Int64
-  totalevals::Int64
+    genome::Vector{Int64}
+    fitness::Float64
+    expr
+    best_at_eval::Int64
+    totalevals::Int64
 end
 #don't store the tree to JLD, it's too big and causes stackoverflowerror
 function JLD.writeas(r::GEESResult)

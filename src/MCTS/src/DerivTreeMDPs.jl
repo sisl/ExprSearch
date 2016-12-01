@@ -37,11 +37,14 @@ module DerivTreeMDPs
 using ExprSearch, LinearDerivTrees
 using Reexport
 using RLESUtils, Observers
+import RLESTypes.SymbolTable
 using POMDPs
 using Iterators
 
-export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, DerivTreeStateSpace, DerivTreeActionSpace
-export DerivTreeTransitionDistr, discount, n_actions, actions, iterator, reward, sync!, step!, get_fitness, get_expr
+export DerivTreeMDPParams, DerivTreeState, DerivTreeAction, DerivTreeMDP, 
+    DerivTreeStateSpace, DerivTreeActionSpace
+export DerivTreeTransitionDistr, discount, n_actions, actions, iterator, reward, 
+    sync!, step!, get_fitness, get_expr
 export create_state, create_action, create_transition_distribution
 
 import LinearDerivTrees: step!, get_expr
@@ -72,20 +75,22 @@ type DerivTreeMDP <: POMDP
   problem::ExprProblem #used in calling get_fitness
   statehash::UInt64 #hash for current state for sync'ing purposes
   all_actions::Vector{DerivTreeAction}
-  userargs::Vector{Any}
+  userargs::SymbolTable
 
-  function DerivTreeMDP{T}(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, all_actions::Vector{DerivTreeAction}, userargs::Vector{T})
+  function DerivTreeMDP(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, 
+      all_actions::Vector{DerivTreeAction}, userargs::SymbolTable=SymbolTable())
     return new(p, tree, zero(UInt64), problem, all_actions, userargs)
   end
 
-  function DerivTreeMDP(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, userargs...)
+  function DerivTreeMDP(p::DerivTreeMDPParams, tree::LinearDerivTree, problem::ExprProblem, 
+      userargs::SymbolTable=SymbolTable())
     mdp = new()
     mdp.params = p
     mdp.tree = tree
     mdp.problem = problem
     mdp.statehash = zero(UInt64)
     mdp.all_actions = generate_all_actions(p.grammar)
-    mdp.userargs = [userargs...]
+    mdp.userargs = userargs
     return mdp
   end
 end
@@ -183,13 +188,13 @@ function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
   sync!(s)
 
   tree = mdp.tree
-  reward = if iscomplete(tree)
+  if iscomplete(tree)
     expr = get_expr(tree)
-    -get_fitness(mdp.problem, expr, mdp.userargs...)
+    reward = -get_fitness(mdp.problem, expr, mdp.userargs)
   elseif isdone(tree) #not-compilable
-    p.max_neg_reward
+    reward = p.max_neg_reward
   else #each step
-    p.step_reward
+    reward = p.step_reward
   end
   return reward
 end

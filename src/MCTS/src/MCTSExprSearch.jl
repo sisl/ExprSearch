@@ -42,15 +42,16 @@ include("DerivTreeMDPs.jl")
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
+import RLESTypes.SymbolTable
 @reexport using LinearDerivTrees  #pretty_string
 using .DerivTreeMDPs
 using GrammaticalEvolution
 using GBMCTS
 using JLD
 
-import LinearDerivTrees: get_derivtree
 import .DerivTreeMDPs.get_fitness
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
+    get_expr, get_derivtree
 
 include("logdefs.jl")
 
@@ -71,11 +72,13 @@ type MCTSESParams <: SearchParams
   seed::Int64
 
   logsys::LogSystem
+  userargs::SymbolTable
 end
 MCTSESParams(maxsteps::Int64, max_neg_reward::Float64, step_reward::Float64, n_iters::Int64,
-    searchdepth::Int64, exploration_const::Float64, maxmod::Bool, q0::Float64, seed::Int64) =
-    MCTSESParams(maxsteps, max_neg_reward, step_reward, n_iters, searchdepth, exploration_const,
-    maxmod, q0, seed, logsystem())
+    searchdepth::Int64, exploration_const::Float64, maxmod::Bool, q0::Float64, seed::Int64,
+    logsys::LogSystem=logsystem(); userargs::SymbolTable=SymbolTable()) =
+        MCTSESParams(maxsteps, max_neg_reward, step_reward, n_iters, searchdepth, 
+        exploration_const, maxmod, q0, seed, logsys, userargs)
 
 type MCTSESResult <: SearchResult
   tree::LinearDerivTree
@@ -86,11 +89,13 @@ type MCTSESResult <: SearchResult
   totalevals::Int64
 end
 
-exprsearch(p::MCTSESParams, problem::ExprProblem, userargs...) = mcts_search(p, problem::ExprProblem, userargs...)
+exprsearch(p::MCTSESParams, problem::ExprProblem) = mcts_search(p, problem::ExprProblem)
 
 get_derivtree(result::MCTSESResult) = get_derivtree(result.tree)
+get_expr(result::MCTSESResult) = result.expr
+get_fitness(result::MCTSESResult) = result.fitness
 
-function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
+function mcts_search(p::MCTSESParams, problem::ExprProblem)
   @notify_observer(p.logsys.observer, "verbose1", ["Starting MCTS search"])
   @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
@@ -99,7 +104,7 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem, userargs...)
   mdp_params = DerivTreeMDPParams(grammar, p.max_neg_reward, p.step_reward)
 
   tree = LinearDerivTree(tree_params)
-  mdp = DerivTreeMDP(mdp_params, tree, problem, userargs...)
+  mdp = DerivTreeMDP(mdp_params, tree, problem, p.userargs)
 
   solver = MCTSSolver(n_iterations=p.n_iters, depth=p.searchdepth, 
     exploration_constant=p.exploration_const, maxmod=p.maxmod, rng=MersenneTwister(p.seed))

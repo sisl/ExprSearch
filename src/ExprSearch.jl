@@ -43,6 +43,7 @@ module ExprSearch
 
 export ExprProblem, get_grammar, get_fitness
 export SearchParams, SearchResult, exprsearch
+export get_expr, get_derivtree
 
 const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
 
@@ -61,6 +62,14 @@ exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodul
 
 load_to_path(MODULEDIR)
 const PKGS = readdir(MODULEDIR)
+
+using DerivationTrees
+import DerivationTrees.get_expr
+
+get_expr(::Void) = ""
+get_fitness(::Void) = realmax(Float64) 
+
+get_derivtree(result::SearchResult) = error("ExprSearch::get_derivtree() not defined")
 
 """
 Test an individual submodule

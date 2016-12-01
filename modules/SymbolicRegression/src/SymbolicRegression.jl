@@ -42,6 +42,7 @@ export Symbolic, create_grammar, get_grammar, get_fitness
 using ExprSearch
 import ExprSearch: ExprProblem, get_fitness, get_grammar
 using RLESUtils, Interpreter
+import RLESTypes.SymbolTable
 
 const DIR = dirname(@__FILE__)
 const GT_FILE = "gt_easy.jl"
@@ -91,7 +92,7 @@ end
 
 ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
 
-function ExprSearch.get_fitness(problem::Symbolic, expr)
+function ExprSearch.get_fitness(problem::Symbolic, expr, userargs::SymbolTable)
     #mean-square error over a range
     sum_se = 0.0
     for x in problem.xrange, y in problem.yrange

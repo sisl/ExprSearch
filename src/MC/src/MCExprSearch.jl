@@ -43,13 +43,15 @@ export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
+import RLESTypes.SymbolTable
 @reexport using LinearDerivTrees  #for pretty strings
 using GrammaticalEvolution
 using Iterators
 using JLD
 
-import LinearDerivTrees: initialize!, get_derivtree
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import LinearDerivTrees: initialize!
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
+    get_derivtree, get_expr
 import Base: isless, copy!
 
 include("logdefs.jl")
@@ -61,8 +63,11 @@ type MCESParams <: SearchParams
     #MC
     n_samples::Int64 #samples
     logsys::LogSystem
+    userargs::SymbolTable
 end
-MCESParams(maxsteps::Int64, n_samples::Int64) = MCESParams(maxsteps, n_samples, logsystem())
+MCESParams(maxsteps::Int64, n_samples::Int64, logsys::LogSystem=logsystem(); 
+    userargs::SymbolTable=SymbolTable()) =  
+    MCESParams(maxsteps, n_samples, logsys, userargs)
 
 type MCState
     tree::LinearDerivTree
@@ -97,11 +102,13 @@ type MCESResult <: SearchResult
     end
 end
 
-exprsearch(p::MCESParams, problem::ExprProblem, userargs...) = mc_search(p, problem, userargs...)
+exprsearch(p::MCESParams, problem::ExprProblem) = mc_search(p, problem)
 
 get_derivtree(result::MCESResult) = get_derivtree(result.tree)
+get_expr(result::MCESResult) = result.expr
+get_fitness(result::MCESResult) = result.fitness
 
-function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
+function mc_search(p::MCESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting MC search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
     
@@ -116,7 +123,7 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
         @notify_observer(p.logsys.observer, "iteration", [i])
         ###############
         #MC algorithm
-        sample!(s, problem)
+        sample!(s, p, problem)
         update!(result, s)
         ###############
 
@@ -137,10 +144,10 @@ function mc_search(p::MCESParams, problem::ExprProblem, userargs...)
 end
 
 #initialize to random state
-function sample!(s::MCState, problem::ExprProblem, retries::Int64=typemax(Int64))
+function sample!(s::MCState, p::MCESParams, problem::ExprProblem, retries::Int64=typemax(Int64))
     rand_with_retry!(s.tree, retries) #sample uniformly
     s.expr = get_expr(s.tree)
-    s.fitness = get_fitness(problem, s.expr)
+    s.fitness = get_fitness(problem, s.expr, p.userargs)
     s
 end
 

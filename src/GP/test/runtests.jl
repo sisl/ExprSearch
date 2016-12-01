@@ -126,7 +126,7 @@ end
 using RLESUtils, TreeUtils
 function test_randnode()
     problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
     grammar = get_grammar(problem)
     mda = min_depth_actions(grammar)
     ind = rand(grammar, mda, 5) 
@@ -136,7 +136,7 @@ end
 using DerivTreeVis
 function test_crossover()
     problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
     grammar = get_grammar(problem)
     mda = min_depth_actions(grammar)
     ind1 = rand(grammar, mda, 5) 
@@ -163,11 +163,11 @@ end
 
 function test_mutate()
     problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0, Observer())
+    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
     grammar = get_grammar(problem)
     mda = min_depth_actions(grammar)
     ind1 = rand(grammar, mda, 10) 
     derivtreevis(ind1.derivtree, "ind1")
-    ind2 = mutate(ind1, mda, 10) 
+    ind2 = mutate(ind1, grammar, mda, 10) 
     derivtreevis(ind2.derivtree, "ind2")
 end
