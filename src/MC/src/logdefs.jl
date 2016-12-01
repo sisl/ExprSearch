@@ -54,7 +54,7 @@ function logsystem()
                 code = string(code)
                 code_short = take(code, 50) |> join
                 return ["i=$iter, fitness=$(signif(fitness, 4))," *
-                         "length=$(length(code)), code=$(code_short)"]
+                         "code=$(code_short)"]
             end)
 
     logsys

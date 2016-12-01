@@ -147,7 +147,7 @@ end
 function sample!(s::MCState, p::MCESParams, problem::ExprProblem, retries::Int64=typemax(Int64))
     rand_with_retry!(s.tree, retries) #sample uniformly
     s.expr = get_expr(s.tree)
-    s.fitness = get_fitness(problem, s.expr, p.userargs)
+    s.fitness = get_fitness(problem, get_derivtree(s.tree), p.userargs)
     s
 end
 

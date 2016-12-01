@@ -43,4 +43,4 @@ for pkg in pkgs
   ExprSearch.test(pkg)
 end
 
-include("shorttest.jl")
+include("symbolic_test.jl")

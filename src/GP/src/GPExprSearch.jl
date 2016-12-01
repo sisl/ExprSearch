@@ -327,9 +327,8 @@ function evaluate!(p::GPESParams, pop::GPPopulation, result::GPESResult, problem
     for ind in pop
         if isnull(ind.fitness)
             try
-                #derivtreevis(ind.derivtree, "myderivationtree")
                 ind.expr = get_expr(ind.derivtree)
-                fitness = get_fitness(problem, ind.expr, p.userargs)
+                fitness = get_fitness(problem, ind.derivtree, p.userargs)
                 ind.fitness = Nullable{Float64}(fitness) 
                 result.totalevals += 1
                 if fitness < result.fitness

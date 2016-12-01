@@ -32,72 +32,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch
-using ExprSearch.MC
-using RLESUtils, Interpreter
-import ExprSearch: ExprProblem, get_grammar, get_fitness
+include("../src/GP/test/runtests.jl")
+symbolic_gp()
 
-const XRANGE = 0.0:0.5:10.0
-const YRANGE = 0.0:0.5:10.0
-const W_LEN = 0.1
-const SYMTABLE = SymbolTable(
-    :+ => +,
-    :* => *)
+include("../src/MC/test/runtests.jl")
+symbolic_mc()
 
-gt(x, y) = 2x + 3y + 5
+include("../src/MCTS/test/runtests.jl")
+symbolic_mcts()
 
-type Symbolic{T<:AbstractFloat} <: ExprProblem
-  grammar::Grammar
-  xrange::FloatRange{T}
-  yrange::FloatRange{T}
-  w_len::Float64
-end
-Symbolic(grammar::Grammar) = Symbolic(grammar, XRANGE, YRANGE, W_LEN)
+include("../src/GE/test/runtests.jl")
+symbolic_ge()
 
-function create_grammar()
-  @grammar grammar begin
-    start = ex
-    ex = sum | product | (ex) | value
-    sum = Expr(:call, :+, ex, ex)
-    product = Expr(:call, :*, ex, ex)
-    value = :x | :y | digit
-    digit = 0:9
-  end
-  return grammar
-end
-
-function eval_expr(problem::Symbolic, expr, x, y)
-    SYMTABLE[:x] = x
-    SYMTABLE[:y] = y
-    return interpret(SYMTABLE, expr)
-end
-
-ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
-function ExprSearch.get_fitness(problem::Symbolic, expr)
-  #mean-square error over a range
-  sum_se = 0.0
-  f(x, y) = eval_expr(problem, expr, x, y)
-  for x in problem.xrange, y in problem.yrange
-    sum_se += abs2(f(x, y) - gt(x, y))
-  end
-  n = length(problem.xrange) * length(problem.yrange)
-  fitness = sum_se / n + problem.w_len * length(string(expr))
-
-  return fitness
-end
-
-function shorttest(; maxsteps::Int64=20,
-                   n_samples::Int64=50)
-
-
-  grammar = create_grammar()
-  problem = Symbolic(grammar)
-  mc_params = MCESParams(maxsteps, n_samples)
-  result = exprsearch(mc_params, problem)
-  @show result.fitness
-  @show result.expr
-
-  nothing
-end
-
-shorttest()

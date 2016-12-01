@@ -48,7 +48,6 @@ using ExprSearch
 @reexport using DerivationTrees
 using GrammaticalEvolution
 using DataStructures
-using RLESUtils, Observers
 
 import GrammaticalEvolution.Grammar
 import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string
@@ -80,14 +79,13 @@ type LinearDerivTree
     derivtree::DerivationTree
     opennodes::Stack
     actions::LDTActions
-    observer::Observer
 end
 
-function LinearDerivTree(params::LDTParams; observer::Observer=Observer()) 
+function LinearDerivTree(params::LDTParams) 
     derivtree = DerivationTree(DerivTreeParams(params.grammar))
     stack = Stack(DerivTreeNode, STACKSIZE)
     actions = LDTActions()
-    LinearDerivTree(params, derivtree, stack, actions, observer) 
+    LinearDerivTree(params, derivtree, stack, actions) 
 end
 
 push!(actions::LDTActions, a::Int64) = push!(actions.actions, a)
@@ -110,7 +108,6 @@ function copy!(dst::LinearDerivTree, src::LinearDerivTree)
     copy!(dst.derivtree, src.derivtree)
     dst.opennodes = deepcopy(src.opennodes)
     copy!(dst.actions, src.actions)
-    dst.observer = src.observer 
     dst
 end
 
@@ -121,7 +118,6 @@ function pretty_string(tree::LinearDerivTree, fmt::Format, capitalize::Bool=fals
 end
 
 function initialize!(tree::LinearDerivTree)
-  @notify_observer(tree.observer, "verbose1", ["initialize! called"])
   root = initialize!(tree.derivtree)
   empty!(tree.opennodes)
   push!(tree.opennodes, root)
@@ -130,7 +126,6 @@ function initialize!(tree::LinearDerivTree)
 end
 
 function step!(tree::LinearDerivTree, a::Int64)
-  @notify_observer(tree.observer, "verbose1", ["step! called"])
   opennodes = tree.opennodes
   if isempty(opennodes)
     return #we're done

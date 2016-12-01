@@ -50,21 +50,23 @@ const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
 using Reexport
 @reexport using GrammaticalEvolution
 using RLESUtils, ModLoader
-
-abstract ExprProblem
-abstract SearchParams
-abstract SearchResult
-
-get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
-get_fitness(problem::ExprProblem, expr) = error("ExprSearch::get_fitness() not defined")
-
-exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
+import RLESTypes.SymbolTable
 
 load_to_path(MODULEDIR)
 const PKGS = readdir(MODULEDIR)
 
 using DerivationTrees
 import DerivationTrees.get_expr
+
+abstract ExprProblem 
+abstract SearchParams
+abstract SearchResult
+
+exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
+
+get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
+get_fitness(problem::ExprProblem, derivtree::DerivationTree, 
+    userargs::SymbolTable) = error("ExprSearch::get_fitness() not defined")
 
 get_expr(::Void) = ""
 get_fitness(::Void) = realmax(Float64) 
@@ -91,26 +93,19 @@ function testall()
     end
 end
 
-include("GP/src/GPExprSearch.jl") #GP
-#export GP
+include("GP/src/GPExprSearch.jl") #Genetic Programming (standard tree-based)
 
-include("GE/src/GEExprSearch.jl") #GE
-#export GE
+include("GE/src/GEExprSearch.jl") #Grammatical Evolution
 
-include("MC/src/MCExprSearch.jl") #MC
-#export MC
+include("MC/src/MCExprSearch.jl") #Monte Carlo (random)
 
-include("PMC/src/PMCExprSearch.jl") #MC
-#export PMC
+include("PMC/src/PMCExprSearch.jl") #Parallel Monte Carlo
 
-include("MCTS/src/MCTSExprSearch.jl") #MCTS without committing steps
-#export MCTS
+include("MCTS/src/MCTSExprSearch.jl") #Monte Carlo Tree Search without committing steps
 
-include("Ref/src/RefExprSearch.jl") #Ref
-#export Ref
+#include("Ref/src/RefExprSearch.jl") #Ref
 
-include("SA/src/SAExprSearch.jl") #SA
-#export SA
+#include("SA/src/SAExprSearch.jl") #SA
 
 end #module
 

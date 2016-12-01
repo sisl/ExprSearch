@@ -56,8 +56,8 @@ function logsystem()
             nevals, fitness, code = x
             code = string(code)
             code_short = take(code, 50) |> join
-            return ["nevals: $nevals, max fitness=$(signif(fitness, 4))," *
-                         "length=$(length(code)), code=$(code_short)"]
+            return ["nevals: $nevals, best fitness=$(signif(fitness, 4))," *
+                         "code=$(code_short)"]
         end)
 
     logsys

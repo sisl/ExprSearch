@@ -189,8 +189,7 @@ function POMDPs.reward(mdp::DerivTreeMDP, s::DerivTreeState)
 
   tree = mdp.tree
   if iscomplete(tree)
-    expr = get_expr(tree)
-    reward = -get_fitness(mdp.problem, expr, mdp.userargs)
+    reward = -get_fitness(mdp.problem, get_derivtree(tree), mdp.userargs)
   elseif isdone(tree) #not-compilable
     reward = p.max_neg_reward
   else #each step

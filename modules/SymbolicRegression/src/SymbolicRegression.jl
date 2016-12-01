@@ -39,7 +39,7 @@ module SymbolicRegression
 
 export Symbolic, create_grammar, get_grammar, get_fitness
 
-using ExprSearch
+using ExprSearch, DerivationTrees
 import ExprSearch: ExprProblem, get_fitness, get_grammar
 using RLESUtils, Interpreter
 import RLESTypes.SymbolTable
@@ -92,7 +92,8 @@ end
 
 ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
 
-function ExprSearch.get_fitness(problem::Symbolic, expr, userargs::SymbolTable)
+function ExprSearch.get_fitness(problem::Symbolic, derivtree::DerivationTree, userargs::SymbolTable)
+    expr = get_expr(derivtree)
     #mean-square error over a range
     sum_se = 0.0
     for x in problem.xrange, y in problem.yrange

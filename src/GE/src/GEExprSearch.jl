@@ -96,13 +96,16 @@ function ge_search(p::GEESParams, problem::ExprProblem)
 
     grammar = get_grammar(problem)
 
+    tree_params = LDTParams(grammar, p.genome_size)
+    tree = LinearDerivTree(tree_params)
+
     pop = ExamplePopulation(p.pop_size, p.genome_size)
     fitness = realmax(Float64)
     iter = 1
     tstart = CPUtime_start()
     while iter <= p.max_iters
         pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
-            p.mutation_rate, p, problem::ExprProblem)
+            p.mutation_rate, p, problem::ExprProblem, tree)
         fitness = pop[1].fitness #population is sorted, so first entry is the best
         code = pop[1].code
         nevals = iter * p.pop_size
@@ -123,8 +126,6 @@ function ge_search(p::GEESParams, problem::ExprProblem)
     best_at_eval = pop.best_at_eval
     totalevals = pop.totalevals
 
-    tree_params = LDTParams(grammar, length(ind.genome))
-    tree = LinearDerivTree(tree_params)
     play!(tree, ind)
 
     @assert expr == get_expr(tree) "expr=$expr, get_expr(tree)=$(get_expr(tree))"
@@ -150,10 +151,12 @@ function ge_search(p::GEESParams, problem::ExprProblem)
 end
 
 function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual, 
-    pop::ExamplePopulation, p::GEESParams, problem::ExprProblem)
+    pop::ExamplePopulation, p::GEESParams, problem::ExprProblem, tree::LinearDerivTree)
     try
-        ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
-        ind.fitness = get_fitness(problem, ind.code, p.userargs)
+        #ind.code = transform(grammar, ind, maxwraps=p.maxwraps)
+        play!(tree, ind) 
+        ind.code = get_expr(tree)
+        ind.fitness = get_fitness(problem, get_derivtree(tree), p.userargs)
         pop.totalevals += 1
         if ind.fitness < pop.best_fitness
             pop.best_fitness = ind.fitness
@@ -161,16 +164,9 @@ function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual
             pop.best_at_eval = pop.totalevals
         end
     catch e
-        if !isa(e, MaxWrapException)
-            s = take(string(e), 50) |> join
-            println("exception = $s")
-            s = take(string(ind.code), 50) |> join
-            len = length(string(ind.code))
-            println("length=$len, code: $(s)")
-            f = open("errorlog.txt", "a") #log to file
-            println(f, typeof(e))
-            println(f, string(ind.code))
-            close(f)
+        #if !isa(e, MaxWrapException)
+        if !isa(e, IncompleteException)
+            rethrow(e)
         end
         ind.code = p.default_code
         ind.fitness = realmax(Float64)
