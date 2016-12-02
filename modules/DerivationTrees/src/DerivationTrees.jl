@@ -54,6 +54,7 @@ import Base: length, copy!
 typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
 typealias TerminalRule Union{RangeRule, } #rules that have no children
 
+
 type DerivTreeParams
     grammar::Grammar
 end
@@ -70,6 +71,8 @@ function DerivTreeNode(rule::Union{Rule,Void}=nothing, depth::Int64=0,
     return DerivTreeNode(cmd, rule, action, depth, DerivTreeNode[])
 end
 
+const NODEPOOL = MemPool(DerivTreeNode,10000,200000)
+
 type DerivationTree
     params::DerivTreeParams
     root::DerivTreeNode
@@ -78,7 +81,7 @@ type DerivationTree
     nodepool::MemPool
 end
 
-function DerivationTree(p::DerivTreeParams, nodepool::MemPool=MemPool(DerivTreeNode,200,400))
+function DerivationTree(p::DerivTreeParams, nodepool::MemPool=NODEPOOL) 
     root = DerivTreeNode(p.grammar.rules[:start])
     maxactions = maxlength(p.grammar)
     tree = DerivationTree(p, root, 0, maxactions, nodepool)

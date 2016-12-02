@@ -149,6 +149,11 @@ function gp_search(p::GPESParams, problem::ExprProblem)
     end
     @assert result.fitness <= get(best_ind(pop).fitness)
 
+    #dealloc pop
+    for ind in pop
+        rm_tree!(ind.derivtree)
+    end
+
     @notify_observer(p.logsys.observer, "result", [result.fitness, string(result.expr), 
         result.best_at_eval, result.totalevals])
 
