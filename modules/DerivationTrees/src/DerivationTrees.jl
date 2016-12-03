@@ -38,10 +38,11 @@ Warning: not all rules are supported
 """
 module DerivationTrees
 
-export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, TerminalRule, get_expr,
+export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr,
     maxlength, get_children
-export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, is_terminal,    
-    swap_children!, max_depth, rm_tree!, rm_node, count_leafs, count_nonleafs
+export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, 
+    is_terminal, swap_children!, max_depth, rm_tree!, rm_node, count_leafs, 
+    count_nonleafs
 export IncompleteException
 
 import Compat.ASCIIString
@@ -52,8 +53,6 @@ using Reexport
 import Base: length, copy!
 
 typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
-typealias TerminalRule Union{RangeRule, } #rules that have no children
-
 
 type DerivTreeParams
     grammar::Grammar
@@ -191,15 +190,19 @@ function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::RepeatedR
     node.children
 end
 
-#= not tested...
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::AndRule)
-  for subrule in rule.values
-    child = DerivTreeNode(rule.name, subrule, node.depth + 1)
-    push!(node.children, child)
-    push!(tree.opennodes, child)
-  end
+    tree.nopen -= 1  
+    @assert tree.nopen >= 0 #sanity check
+    node.cmd = rule.name
+    for subrule in rule.values
+        child = mk_node(tree)
+        child.rule = subrule
+        child.depth = node.depth + 1
+        push!(node.children, child)
+    end
+    tree.nopen += length(node.children)
+    node.children
 end
-=#
 
 function expand_node!(tree::DerivationTree, node::DerivTreeNode, rule::ExprRule)
     tree.nopen -= 1  
@@ -235,7 +238,7 @@ end
 ###########################
 ### get_expr
 function get_expr(tree::DerivationTree) #entry
-    return iscomplete(tree) ? get_expr(tree.root) : throw(IncompleteException())
+    iscomplete(tree) ? get_expr(tree.root) : throw(IncompleteException())
 end
 
 get_expr(node::DerivTreeNode) = get_expr(node, node.rule)
@@ -243,23 +246,19 @@ get_expr(node::DerivTreeNode, rule::Terminal) = rule.value
 
 function get_expr(node::DerivTreeNode, rule::RangeRule)
     value = ((node.action - 1) % length(rule.range)) + rule.range.start
-
     if rule.action != nothing
         value = rule.action(value)
     end
-
-    return value
+    value
 end
 
 function get_expr(node::DerivTreeNode, rule::OrRule)
     child = node.children[1]
     value = get_expr(child, child.rule)
-
     if rule.action != nothing
         value = rule.action(value)
     end
-
-    return value
+    value
 end
 
 function get_expr(node::DerivTreeNode, rule::RepeatedRule)
@@ -267,12 +266,21 @@ function get_expr(node::DerivTreeNode, rule::RepeatedRule)
     for child in node.children
         push!(values, get_expr(child, child.rule))
     end
-
     if rule.action !== nothing
         values = rule.action(values)
     end
+    values
+end
 
-    return values
+function get_expr(node::DerivTreeNode, rule::AndRule)
+    values = Any[]
+    for child in node.children
+        push!(values, get_expr(child, child.rule))
+    end
+    if rule.action !== nothing
+        values = rule.action(values)
+    end
+    values
 end
 
 function get_expr(node::DerivTreeNode, rule::ExprRule)
@@ -287,7 +295,7 @@ function get_expr(node::DerivTreeNode, rule::ExprRule)
             push!(xs, arg)
         end
     end
-    return Expr(xs...)
+    Expr(xs...)
 end
 
 ###########################
@@ -351,104 +359,5 @@ max_depth(node::DerivTreeNode) = traverse(x->x.depth, (x,y)->max(x,y), node)
 count_leafs(tree::DerivationTree) = count_nodes(isleaf, tree.root)
 count_nonleafs(tree::DerivationTree) = count_nodes(x->!isleaf(x), tree.root)
 length(tree::DerivationTree) = count_nodes(tree.root)
-
-
-#= """ =#
-#= Generate a random tree.  =#
-#= Returns true if completed successfully, false otherwise =#
-#= """ =#
-#= function rand!(tree::DerivationTree) =#
-#=     initialize!(tree) =#
-#=     n = 0 =#
-#=     while !iscomplete(tree) && n < tree.maxsteps =#
-#=       as = actionspace(tree) =#
-#=       step!(tree, rand(as)) =#
-#=       n += 1 =#
-#=     end =#
-#=     return iscomplete(tree) =#
-#= end =#
-#= """ =#
-#= Generate a random tree up to a maximum number of retries to get a complete tree.  =#
-#= """ =#
-#= function rand_with_retry!(tree::DerivationTree, retries::Int64=5) =#
-#=     while retries > 0 =#
-#=         compl = rand!(tree)  =#
-#=         if compl =#
-#=             return true =#
-#=         end =#
-#=         retries -= 1 =#
-#=     end =#
-#=     return false =#
-#= end =#
-
-
-################################
-#=
-#TODO: replace these with versions that operate on actions instead of subtrees, e.g., ACASX_SA broken...
-
-#uniformly randomly select a node from tree
-rand(tree::DerivationTree) = rand(tree.root)
-
-
-#generate a random tree, returns true if complete tree was attained
-function rand!(tree::DerivationTree, retries::Int64=5)
-  while retries > 0
-    initialize!(tree)
-    while !isdone(tree)
-      as = actionspace(tree)
-      step!(tree, rand(as))
-    end
-    if iscomplete(tree)
-      return true
-    end
-    retries -= 1
-  end
-  return false
-end
-
-#drop subtree starting at given node and init derivation starting from here
-function initialize!(tree::DerivationTree, startnode::DerivTreeNode)
-  tree.nsteps -= count(x -> isa(x.rule, DecisionRule), startnode) #undo subtree effect on nsteps
-  return_to_pool(tree.nodepool, startnode.children) #discard old subtree
-  empty!(tree.opennodes)
-
-  push!(tree.opennodes, startnode)
-  process_non_decisions!(tree)
-  startnode
-end
-
-#generate a (new) random subtree starting at startnode, returns true if a complete tree was attained
-function rand!(tree::DerivationTree, startnode::DerivTreeNode, retries::Int64=5)
-  while retries > 0
-    initialize!(tree, startnode)
-    while !isdone(tree)
-      as = actionspace(tree)
-      step!(tree, rand(as))
-    end
-    if iscomplete(tree)
-      return true
-    end
-    retries -= 1
-  end
-  return false
-end
-
-#I don't think these are needed anymore
-
-count(tree::DerivationTree) = count(tree.root)
-count(node::DerivTreeNode) = count(x -> true, node)
-count(f::Function, tree::DerivationTree) = count(f::Function, tree.root)
-
-function count(f::Function, node::DerivTreeNode)
-  n = f(node)
-  for child in node.children
-    n += count(f, child)
-  end
-  return n
-end
-
-#size of subtree / count number of nodes in tree/subtree (recursive implementation)
-size(tree::DerivationTree) = count(tree)
-=#
 
 end #module

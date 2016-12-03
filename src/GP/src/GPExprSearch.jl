@@ -236,6 +236,10 @@ function min_depth_rule(d::MinDepthByRule, rule::ExprRule)
     a = filter(r->isa(r,ReferencedRule), rule.args)
     1 + maximum(map(r->min_depth_rule(d,r), a))
 end
+function min_depth_rule(d::MinDepthByRule, rule::AndRule)
+    a = filter(r->isa(r,ReferencedRule), rule.values)
+    1 + maximum(map(r->min_depth_rule(d,r), a))
+end
 
 """
 Compute minimum depth per action of decision rule
@@ -258,7 +262,7 @@ min_depth_actions(d::MinDepthByRule, rule::RangeRule) = zeros(Int64, length(rule
 function min_depth_actions(d::MinDepthByRule, rule::OrRule)
     1 + Int64[min_depth_rule(d, v) for v in rule.values]
 end
-function min_depth_actions(d::MinDepthByRule, rule::ExprRule)
+function min_depth_actions(d::MinDepthByRule, rule::Union{AndRule,ExprRule})
     Int64[min_depth_rule(d, rule)]
 end
 
