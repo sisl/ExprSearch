@@ -137,6 +137,7 @@ function mc_search(p::MCESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "computeinfo", ["endtime",  string(now())])
     @notify_observer(p.logsys.observer, "computeinfo", ["hostname", gethostname()])
     @notify_observer(p.logsys.observer, "computeinfo", ["gitSHA",  get_SHA(dirname(@__FILE__))])
+    @notify_observer(p.logsys.observer, "computeinfo", ["cpu_time", CPUtime_elapsed_s(tstart)]) 
     @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
     @notify_observer(p.logsys.observer, "parameters", ["n_samples", p.n_samples])
 
