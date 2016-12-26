@@ -70,7 +70,7 @@ function DerivTreeNode(rule::Union{Rule,Void}=nothing, depth::Int64=0,
     return DerivTreeNode(cmd, rule, action, depth, DerivTreeNode[])
 end
 
-const NODEPOOL = MemPool(DerivTreeNode,10000,200000)
+const NODEPOOL = MemPool(DerivTreeNode,10000,1000000)
 
 type DerivationTree
     params::DerivTreeParams
