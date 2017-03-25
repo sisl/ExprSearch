@@ -73,17 +73,18 @@ immutable CEESParams <: SearchParams
     num_samples::Int64  #number of samples
     iterations::Int64     #number of iterations
     elite_frac::Float64 #fraction of samples considered elite
-    alpha::Float64      #blend distributions (alpha) * pcfg_new + (1-alpha) * pcfg_old
+    w_new::Float64      #blend new/old distributions (w_new) * pcfg_new + (1-w_new) * pcfg_old
+    w_prior::Float64      #blend with prior pcfg = (1-w_prior) * pcfg + (w_prior) * pcfg_prior
     maxsteps::Int64     #maximum number of steps in derivation 
     default_expr        #if derivation is incomplete, use default expr
     logsys::LogSystem   #to manage logging
     userargs::SymbolTable #passed to get_fitness if specified
 end
 function CEESParams(num_samples::Int64, iterations::Int64, elite_frac::Float64,
-    alpha::Float64, maxsteps::Int64, default_expr, logsys::LogSystem=logsystem(); 
-    userargs::SymbolTable=SymbolTable()) 
-    CEESParams(num_samples, iterations, elite_frac, alpha, maxsteps, default_expr, logsys, 
-        userargs)
+    w_new::Float64, w_prior::Float64, maxsteps::Int64, default_expr, 
+    logsys::LogSystem=logsystem(); userargs::SymbolTable=SymbolTable()) 
+    CEESParams(num_samples, iterations, elite_frac, w_new, w_prior, maxsteps, default_expr, 
+        logsys, userargs)
 end
 
 type CEESResult <: SearchResult
@@ -112,7 +113,8 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     cfg = get_grammar(problem)
     result = CEESResult(cfg) 
     pcfg = PCFG(cfg) #initialize to uniform probabilities
-    pcfg_new = copy(pcfg) #custom copy
+    pcfg_new = copy(pcfg) #for blending of new and old
+    pcfg_prior = copy(pcfg) #uniform prior to ensure full support over domain
 
     tree_params = LDTParams(cfg, p.maxsteps)
     samples = [LinearDerivTree(tree_params) for i=1:p.num_samples] 
@@ -137,9 +139,13 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         # Fit elite distribution
         fit_mle!(pcfg_new, elite_samples)
 
-        # Weight with old pcfg to gradually shift distribution
-        # pcfg = (alpha) * pcfg_new + (1-alpha) * pcfg_old
-        weighted_sum!(pcfg, 1-p.alpha, pcfg_new, p.alpha)
+        # Blend old and new distributions 
+        # pcfg = (w_new) * pcfg_new + (1-w_new) * pcfg_old
+        weighted_sum!(pcfg, 1.0-p.w_new, pcfg_new, p.w_new)
+
+        # Include uniform prior
+        # pcfg = (1-w_prior) * pcfg + (w_prior) * pcfg_prior
+        weighted_sum!(pcfg, 1.0-p.w_prior, pcfg_prior, p.w_prior)
 
         @assert result.fitness <= fitnesses[1] #result.fitness should be tracking global minimum
 
@@ -171,7 +177,8 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "parameters", ["num_samples", p.num_samples])
     @notify_observer(p.logsys.observer, "parameters", ["iterations", p.iterations])
     @notify_observer(p.logsys.observer, "parameters", ["elite_frac", p.elite_frac])
-    @notify_observer(p.logsys.observer, "parameters", ["alpha", p.alpha])
+    @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
+    @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
     @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
     @notify_observer(p.logsys.observer, "parameters", ["default_expr", string(p.default_expr)])
 
