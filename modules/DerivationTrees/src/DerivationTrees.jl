@@ -39,7 +39,7 @@ Warning: not all rules are supported
 module DerivationTrees
 
 export DerivTreeParams, DerivationTree, DerivTreeNode, DecisionRule, get_expr,
-    maxlength, get_children
+    maxlength, get_children, get_sym
 export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision, 
     is_terminal, swap_children!, max_depth, rm_tree!, rm_node, count_leafs, 
     count_nonleafs
@@ -50,7 +50,10 @@ using RLESUtils, MemPools, TreeIterators, TreeUtils
 using Reexport
 @reexport using GrammaticalEvolution
 
-import Base: length, copy!
+using AbstractTrees
+import AbstractTrees: children, printnode
+
+import Base: length, copy!, string
 
 typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
 
@@ -359,5 +362,25 @@ max_depth(node::DerivTreeNode) = traverse(x->x.depth, (x,y)->max(x,y), node)
 count_leafs(tree::DerivationTree) = count_nodes(isleaf, tree.root)
 count_nonleafs(tree::DerivationTree) = count_nodes(x->!isleaf(x), tree.root)
 length(tree::DerivationTree) = count_nodes(tree.root)
+
+get_sym(node::DerivTreeNode) = Symbol(node.rule.name)
+
+########################################
+# Interface for AbstractTrees.jl.  Enables print_tree(STDOUT, tree)
+children(tree::DerivationTree) = tree.root.children
+children(node::DerivTreeNode) = node.children
+function printnode(io::IO, tree::DerivationTree) 
+    Base.print_with_color(:blue, io, string(tree.root))
+end
+function printnode(io::IO, node::DerivTreeNode) 
+    print(io, string(node))
+end
+function string(node::DerivTreeNode) 
+    !isempty(node.cmd) ? node.cmd : string(node, node.rule)
+end
+string(node::DerivTreeNode, rule::RangeRule) = get_expr(node, rule)
+string(node::DerivTreeNode, rule::Terminal) = get_expr(node, rule)
+string(node::DerivTreeNode, rule) = string(typeof(rule))
+
 
 end #module

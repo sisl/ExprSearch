@@ -103,6 +103,8 @@ include("PMC/src/PMCExprSearch.jl") #Parallel Monte Carlo
 
 include("MCTS/src/MCTSExprSearch.jl") #Monte Carlo Tree Search without committing steps
 
+include("CE/src/CEExprSearch.jl") #Cross-entropy method optimization using PCFG
+
 #include("Ref/src/RefExprSearch.jl") #Ref
 
 #include("SA/src/SAExprSearch.jl") #SA

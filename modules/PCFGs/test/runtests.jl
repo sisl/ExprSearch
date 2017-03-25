@@ -1,7 +1,7 @@
 # *****************************************************************************
 # Written by Ritchie Lee, ritchie.lee@sv.cmu.edu
 # *****************************************************************************
-# Copyright ã 2015, United States Government, as represented by the
+# Copyright ã ``2015, United States Government, as represented by the
 # Administrator of the National Aeronautics and Space Administration. All
 # rights reserved.  The Reinforcement Learning Encounter Simulator (RLES)
 # platform is licensed under the Apache License, Version 2.0 (the "License");
@@ -32,39 +32,25 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Visualizer for DrivationTrees.jl
-Produces a TikzQTree
-"""
-module DerivTreeVis
-#TODO: update this to use AbstractTrees.jl interface
+using ExprSearch
+using PCFGs
+using Base.Test
 
-export derivtreevis
+using DerivationTrees
+using SymbolicRegression
 
-using ExprSearch, DerivationTrees
-using RLESUtils, TreeToJSON, TikzQTrees
-using Iterators
+using AbstractTrees
 
-function derivtreevis(tree::DerivationTree, outfileroot::AbstractString)
+const num_samples = 20 
+const maxsteps = 20 
+const w1 = 0.2
+const w2 = 1.0 - w1 
 
-  get_name(tree::DerivationTree) = get_name(tree.root)
-  function get_name(node::DerivTreeNode)
-    cmd_text = node.cmd
-    rule_text = split(string(typeof(node.rule)), ".")[end]
-    action_text = string(node.action)
-    expr_text = string(get_expr(node))
-    text = join([cmd_text, rule_text, action_text, expr_text], "\\\\")
-    return text
-  end
-
-  get_children(tree::DerivationTree) = get_children(tree.root)
-  get_children(node::DerivTreeNode) = imap(x -> ("", x), node.children)
-  get_depth(tree::DerivationTree) = get_depth(tree.root)
-  get_depth(node::DerivTreeNode) = node.depth
-
-  viscalls = VisCalls(get_name, get_children, get_depth)
-  write_json(tree, viscalls, "$(outfileroot).json")
-  plottree("$(outfileroot).json", outfileroot="$(outfileroot)")
-end
-
-end #module
+problem = Symbolic()
+cfg = get_grammar(problem)
+pcfg = PCFG(cfg)
+pcfg2 = PCFG(cfg)
+samples = rand(pcfg, num_samples, maxsteps)
+filter!(iscomplete, samples) #disregard the incomplete ones
+fit_mle!(pcfg, samples)
+weighted_sum!(pcfg, w1, pcfg2, w2)

@@ -374,7 +374,7 @@ TreeUtils.get_children(node::DerivTreeNode) = DerivationTrees.get_children(node)
 
 function findbyrule(ind::GPIndividual, name::AbstractString)
     candidates = DerivTreeNode[]
-    for node in tree_iter(ind.derivtree.root)
+    for node in tree_iter(ind.derivtree.root) #TODO: replace with AbstractTrees.jl interface
         if node.rule.name == name 
             push!(candidates, node)
         end

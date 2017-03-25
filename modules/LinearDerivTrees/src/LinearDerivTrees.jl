@@ -50,7 +50,7 @@ using GrammaticalEvolution
 using DataStructures
 
 import GrammaticalEvolution.Grammar
-import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string
+import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string, get_sym
 import ExprSearch: get_derivtree
 import Base: length, push!, convert, rand!, getindex, empty!, copy!
 
@@ -240,5 +240,7 @@ function rand_with_retry!(tree::LinearDerivTree, retries::Int64=5)
     end
     return false
 end
+
+get_sym(tree::LinearDerivTree) = isempty(tree.opennodes) ? :() : get_sym(top(tree.opennodes))
 
 end #module
