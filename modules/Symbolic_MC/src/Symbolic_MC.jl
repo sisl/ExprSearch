@@ -53,7 +53,7 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
                      logfileroot::AbstractString="symbolic_mc_log",
 
                      maxsteps::Int64=20,
-                     n_samples::Int64=50000,
+                     n_samples::Int64=100000,
 
                      gt_file::AbstractString="gt_easy.jl",
 

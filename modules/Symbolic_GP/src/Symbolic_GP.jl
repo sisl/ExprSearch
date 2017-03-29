@@ -68,7 +68,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      seed=1,
                      logfileroot::AbstractString="symbolic_gp_log",
 
-                     pop_size::Int64=1000,
+                     pop_size::Int64=2000,
                      maxdepth::Int64=10,
                      iterations::Int64=50,
                      tournament_size::Int64=20,

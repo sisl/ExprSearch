@@ -52,7 +52,7 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
                      seed=1,
                      logfileroot::AbstractString="symbolic_ce_log",
 
-                     num_samples::Int64=1000,
+                     num_samples::Int64=2000,
                      iterations::Int64=50,
                      elite_frac::Float64=0.2,
                      w_new::Float64=0.2,

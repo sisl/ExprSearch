@@ -48,13 +48,12 @@ export combine_and_plot
 import Compat: ASCIIString, UTF8String
 using ExprSearch: GP, MC, MCTS, GE, CE
 using Symbolic_GP, Symbolic_GE, Symbolic_MC, Symbolic_MCTS, Symbolic_CE 
-using LogJoiner
+using RLESUtils, Loggers, MathUtils, LatexUtils, Sweeper, LogJoiner
 
-using RLESUtils, Loggers, MathUtils, LatexUtils, Sweeper
 using DataFrames
 using PGFPlots, TikzPictures
 
-const STUDYNAME = "Symbolic_Compare"
+const STUDYNAME = "SymbolicCompare"
 const MC_NAME = "Symbolic_MC"
 const MCTS_NAME = "Symbolic_MCTS"
 const GE_NAME = "Symbolic_GE"

@@ -53,7 +53,7 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
                      logfileroot::AbstractString="symbolic_ge_log",
 
                      genome_size::Int64=40,
-                     pop_size::Int64=1000,
+                     pop_size::Int64=2000,
                      maxwraps::Int64=0,
                      maxiterations::Int64=50,
                      top_keep::Float64=0.1,

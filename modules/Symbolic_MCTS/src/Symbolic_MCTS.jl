@@ -52,11 +52,11 @@ function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCT
                      seed=1,
                      logfileroot::AbstractString="symbolic_mcts_log",
 
-                     n_iters::Int64=50000,
+                     n_iters::Int64=100000,
                      searchdepth::Int64=30,
                      explorationconst::Float64=2000.0,
                      q0::Float64=-1000.0,
-                     maxsteps::Int64=20,
+                     maxsteps::Int64=40,
                      max_neg_reward::Float64=-1000.0,
                      step_reward::Float64=0.0,
                      maxmod::Bool=false, #use the max update mod

@@ -2,7 +2,7 @@ using RLESUtils, RunUtils, IFTTTUtils
 
 const COMP = gethostname()
 const I_START = 1 
-const I_END = 5 
+const I_END = 10 
 const NOTIFY = false
 
 template_gp(i) =
@@ -22,7 +22,7 @@ $NOTIFY && sendifttt(;value1="ge,$i", value2="$COMP")
 template_mc(i) =
 """
 using ExprSearch,Symbolic_MC,RLESUtils,IFTTTUtils
-symbolic_mc1(;seed=$i, outdir=Pkg.dir("ExprSearch/results/SymbolicCompare/Symbolic_MC/seed$i"))
+symbolic_mc(;seed=$i, outdir=Pkg.dir("ExprSearch/results/SymbolicCompare/Symbolic_MC/seed$i"))
 $NOTIFY && sendifttt(;value1="mc,$i", value2="$COMP")
 """
 
@@ -49,6 +49,5 @@ append!(A, [JuliaSource(template_gp(i)) for i=I_START:I_END])
 append!(A, [JuliaSource(template_mc(i)) for i=I_START:I_END])
 append!(A, [JuliaSource(template_mcts(i)) for i=I_START:I_END])
 
-#addprocs(4)
 #include("script.jl")
-#fs=pmap(julia_process, A); notifydone()
+#fs=julia_process(A,np); notifydone()
