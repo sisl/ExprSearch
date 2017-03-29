@@ -32,5 +32,62 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch
+module Symbolic_CE
+
+export symbolic_ce
+
+using ExprSearch, SymbolicRegression, DerivTreeVis
 using ExprSearch.CE
+using RLESUtils, LogSystems, Loggers
+using Base.Test
+
+const DIR = dirname(@__FILE__)
+const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+
+"""
+Example usage:
+symbolic_ce(; seed=1)
+"""
+function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
+                     seed=1,
+                     logfileroot::AbstractString="symbolic_ce_log",
+
+                     num_samples::Int64=1000,
+                     iterations::Int64=50,
+                     elite_frac::Float64=0.2,
+                     w_new::Float64=0.2,
+                     w_prior::Float64=0.05,
+                     maxsteps::Int64=20,
+                     default_code::Any=0.0,
+
+                     gt_file::AbstractString="gt_easy.jl",
+
+                     vis::Bool=true)
+    srand(seed)
+    mkpath(outdir)
+
+    logsys = CE.logsystem()
+    empty_listeners!(logsys)
+    send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
+    logs = TaggedDFLogger()
+    send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
+        "parameters", "result"])
+
+    problem = Symbolic(gt_file)
+
+    ce_params = CEESParams(num_samples, iterations, elite_frac, w_new, 
+        w_prior, maxsteps, default_code, logsys)
+
+    result = exprsearch(ce_params, problem)
+
+    outfile = joinpath(outdir, "$(logfileroot).txt")
+    save_log(outfile, logs)
+
+    if vis
+        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
+    end
+    @show result.expr
+    return result
+end
+
+end #module

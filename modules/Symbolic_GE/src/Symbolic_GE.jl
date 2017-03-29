@@ -32,5 +32,66 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch
-using ExprSearch.CE
+module Symbolic_GE
+
+export symbolic_ge
+
+using ExprSearch, SymbolicRegression, DerivTreeVis
+using ExprSearch.GE
+using RLESUtils, Observers, Loggers, LogSystems
+using Base.Test
+
+const DIR = dirname(@__FILE__)
+const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+
+"""
+Example usage:
+symbolic_ge(; seed=1)
+"""
+function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
+                     seed=1,
+                     logfileroot::AbstractString="symbolic_ge_log",
+
+                     genome_size::Int64=40,
+                     pop_size::Int64=1000,
+                     maxwraps::Int64=0,
+                     maxiterations::Int64=50,
+                     top_keep::Float64=0.1,
+                     top_seed::Float64=0.4,
+                     rand_frac::Float64=0.4,
+                     prob_mutation::Float64=0.6,
+                     mutation_rate::Float64=0.6,
+                     defaultcode::Any=0.0,
+
+                     gt_file::AbstractString="gt_easy.jl",
+
+                     vis::Bool=true)
+    srand(seed)
+    mkpath(outdir)
+
+    logsys = GE.logsystem()
+    empty_listeners!(logsys)
+    send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
+    logs = TaggedDFLogger()
+    send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
+        "fitness5", "parameters", "result"])
+
+    problem = Symbolic(gt_file)
+  
+    ge_params = GEESParams(genome_size, pop_size, maxwraps,
+                         top_keep, top_seed, rand_frac, prob_mutation, mutation_rate, defaultcode,
+                         maxiterations, logsys)
+  
+    result = exprsearch(ge_params, problem)
+
+    outfile = joinpath(outdir, "$(logfileroot).txt")
+    save_log(outfile, logs)
+
+    if vis
+        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
+    end
+    @show result.expr
+    return result
+end
+
+end #module
