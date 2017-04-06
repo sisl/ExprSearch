@@ -178,7 +178,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "parameters", ["iterations", p.iterations])
     @notify_observer(p.logsys.observer, "parameters", ["elite_frac", p.elite_frac])
     @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
-    @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
+    @notify_observer(p.logsys.observer, "parameters", ["w_prior", p.w_prior])
     @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
     @notify_observer(p.logsys.observer, "parameters", ["default_expr", string(p.default_expr)])
 
