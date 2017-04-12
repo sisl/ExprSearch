@@ -204,6 +204,19 @@ function master_plot(masterlog::DataFrame; subsample::Int64=25000)
         title="Elapsed CPU Time vs. Number of Evaluations", legendPos="north west"))
     push!(td, tp)
 
+    #elapsed_cpu_vs_fitness
+    empty!(plotarray)
+    for i = 1:n_algos
+        D1 = D[D[:algorithm].==algo_names[i], [:elapsed_cpu_s_mean, 
+            :elapsed_cpu_s_SEM, :fitness_mean, :fitness_SEM]]
+        push!(plotarray, Plots.Linear(D1[:elapsed_cpu_s_mean], D1[:fitness_mean], 
+            errorBars=ErrorBars(;x=D1[:elapsed_cpu_s_SEM], y=D1[:fitness_SEM]), 
+            legendentry=escape_latex(algo_names[i])))
+    end
+    tp = PGFPlots.plot(Axis(plotarray, xlabel="Elapsed CPU Time (s)", ylabel="Fitness",
+        title="Fitness vs. Elapsed CPU Time", legendPos="north east"))
+    push!(td, tp)
+
     save(PDF(PLOTFILEROOT * ".pdf"), td)
     save(TEX(PLOTFILEROOT * ".tex"), td)
 end
