@@ -103,7 +103,7 @@ function rand(pcfg::PCFG, N::Int64, maxsteps::Int64)
     samples = Array(LinearDerivTree, N)
     for i = 1:N
         s = LinearDerivTree(params)
-        rand!(s, pcfg, maxsteps)
+        rand!(s, pcfg)
         samples[i] = s
     end
     samples
