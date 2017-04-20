@@ -32,5 +32,57 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch
-using ExprSearch.CE
+module Symbolic_MC
+
+export symbolic_mc
+
+using ExprSearch, SymbolicRegression, DerivTreeVis
+using ExprSearch.MC
+using RLESUtils, Observers, LogSystems, Loggers
+using Base.Test
+
+const DIR = dirname(@__FILE__)
+const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+
+"""
+Example usage:
+symbolic_mc(; seed=1)
+"""
+function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
+                     seed=1,
+                     logfileroot::AbstractString="symbolic_mc_log",
+
+                     maxsteps::Int64=20,
+                     n_samples::Int64=100000,
+
+                     gt_file::AbstractString="gt_easy.jl",
+
+                     loginterval::Int64=1000,
+                     vis::Bool=true)
+    srand(seed)
+    mkpath(outdir)
+
+    logsys = MC.logsystem()
+    empty_listeners!(logsys)
+    send_to!(STDOUT, logsys, ["verbose1", "result"])
+    send_to!(STDOUT, logsys, "current_best_print"; interval=loginterval)
+    logs = TaggedDFLogger()
+    send_to!(logs, logsys, ["computeinfo", "parameters", "result"])
+    send_to!(logs, logsys,  "current_best"; interval=loginterval)
+    send_to!(logs, logsys,  "elapsed_cpu_s"; interval=loginterval)
+
+    problem = Symbolic(gt_file)
+    mc_params = MCESParams(maxsteps, n_samples, logsys)
+    result = exprsearch(mc_params, problem)
+
+    outfile = joinpath(outdir, "$(logfileroot).txt")
+    save_log(outfile, logs)
+
+    if vis
+        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
+    end
+    @show result.expr
+    return result
+end
+
+end #module

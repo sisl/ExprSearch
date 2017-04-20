@@ -32,13 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch, SymbolicRegression, DerivTreeVis
+using ExprSearch, SymbolicRegression
 using ExprSearch.GP
-using RLESUtils, LogSystems, Loggers
-using Base.Test
-
-const DIR = dirname(@__FILE__)
-const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
 
 const MINDEPTHBYRULE = MinDepthByRule(
     :start => 2,
@@ -55,54 +50,6 @@ const MINDEPTHBYACTION = MinDepthByAction(
     :product => Int64[3],
     :value => Int64[1,1,1],
     :digit => Int64[0,0,0,0,0,0,0,0,0,0])
-
-"""
-Example usage:
-symbolic_gp(; seed=1)
-"""
-function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
-                     seed=1,
-                     logfileroot::AbstractString="symbolic_gp_log",
-
-                     pop_size::Int64=1000,
-                     maxdepth::Int64=10,
-                     iterations::Int64=10,
-                     tournament_size::Int64=20,
-                     top_keep::Float64=0.1,
-                     crossover_frac::Float64=0.4,
-                     mutate_frac::Float64=0.2,
-                     rand_frac::Float64=0.2,
-                     default_code::Any=0.0,
-
-                     gt_file::AbstractString="gt_easy.jl",
-
-                     vis::Bool=true)
-    srand(seed)
-    mkpath(outdir)
-
-    logsys = GP.logsystem()
-    empty_listeners!(logsys)
-    send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
-    logs = TaggedDFLogger()
-    send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
-        "fitness5", "parameters", "result"])
-
-    problem = Symbolic(gt_file)
-  
-    gp_params = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep,
-        crossover_frac, mutate_frac, rand_frac, default_code, logsys)
-  
-    result = exprsearch(gp_params, problem)
-
-    outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
-
-    if vis
-        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
-    end
-    @show result.expr
-    return result
-end
 
 function test_mindepth()
     problem = Symbolic("gt_easy.jl")

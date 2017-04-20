@@ -33,4 +33,6 @@
 # *****************************************************************************
 
 using ExprSearch
-using ExprSearch.CE
+using Symbolic_CE
+
+
