@@ -116,11 +116,13 @@ trees in samples and store the output in-lce into pcfg.
 function fit_mle!(pcfg::PCFG, samples::Vector{LinearDerivTree})
     fill!(pcfg, 0.0)
     for s in samples
-        for node in PreOrderDFS(s.derivtree.root)
-            if isa(node.rule, DecisionRule)
-                sym = Symbol(node.rule.name)
-                a = node.action
-                pcfg[sym][a] += 1.0
+        if iscomplete(s) #don't consider incomplete elite samples
+            for node in PreOrderDFS(s.derivtree.root)
+                if isa(node.rule, DecisionRule)
+                    sym = Symbol(node.rule.name)
+                    a = node.action
+                    pcfg[sym][a] += 1.0
+                end
             end
         end
     end

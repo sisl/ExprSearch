@@ -178,35 +178,68 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "parameters", ["iterations", p.iterations])
     @notify_observer(p.logsys.observer, "parameters", ["elite_frac", p.elite_frac])
     @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
-    @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
+    @notify_observer(p.logsys.observer, "parameters", ["w_prior", p.w_prior])
     @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
     @notify_observer(p.logsys.observer, "parameters", ["default_expr", string(p.default_expr)])
 
     result 
 end
 
+#Sequential evaluation of fitnesses
+#= function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem,  =#
+#=     default_expr) =#
+#=     fitnesses = Array(Float64, p.num_samples) =#
+#=     i = 1 =#
+#=     for s in samples =#
+#=         try =#
+#=             fitness = get_fitness(problem, s.derivtree, p.userargs) =#
+#=             fitnesses[i] = fitness =#
+#=             result.totalevals += 1 =#
+#=             if fitness < result.fitness =#
+#=                 result.fitness = fitness =#
+#=                 copy!(result.tree, s.derivtree) =#
+#=                 result.best_at_eval = result.totalevals =#
+#=                 result.expr = get_expr(s)  =#
+#=             end =#
+#=         catch e =#
+#=             if !isa(e, IncompleteException) =#
+#=                 rethrow(e) =#
+#=             end =#
+#=             fitnesses[i] = realmax(Float64) =#
+#=         end =#
+#=         i += 1 =#
+#=     end =#
+#=     fitnesses =#
+#= end =#
+
+#threaded evaluation of fitnesses
 function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
     default_expr)
     fitnesses = Array(Float64, p.num_samples)
     i = 1
-    for s in samples
+    #evaluate fitness in parallel
+    Threads.@threads for i = 1:p.num_samples
         try
-            fitness = get_fitness(problem, s.derivtree, p.userargs)
-            fitnesses[i] = fitness
-            result.totalevals += 1
-            if fitness < result.fitness
-                result.fitness = fitness
-                copy!(result.tree, s.derivtree)
-                result.best_at_eval = result.totalevals
-                result.expr = get_expr(s) 
-            end
+            #get_fitness must be thread-safe!
+            fitnesses[i] = get_fitness(problem, samples[i].derivtree, p.userargs)
         catch e
             if !isa(e, IncompleteException)
                 rethrow(e)
             end
             fitnesses[i] = realmax(Float64)
         end
-        i += 1
+    end
+    #update global result
+    for i = 1:p.num_samples
+        fitness = fitnesses[i]
+        result.totalevals += 1
+        if fitness < result.fitness
+            s = samples[i]
+            result.fitness = fitness
+            copy!(result.tree, s.derivtree)
+            result.best_at_eval = result.totalevals
+            result.expr = get_expr(s) 
+        end
     end
     fitnesses
 end
