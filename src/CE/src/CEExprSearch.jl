@@ -126,7 +126,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         rand!(samples, pcfg)
 
         # Evaluate fitnesses
-        fitnesses = evaluate(p, samples, result, problem, p.default_expr)
+        fitnesses = parallel_evaluate(p, samples, result, problem, p.default_expr)
 
         # Sort in ascending order, lower is better
         order = sortperm(fitnesses)
@@ -186,37 +186,36 @@ function ce_search(p::CEESParams, problem::ExprProblem)
 end
 
 #Sequential evaluation of fitnesses
-#= function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem,  =#
-#=     default_expr) =#
-#=     fitnesses = Array(Float64, p.num_samples) =#
-#=     i = 1 =#
-#=     for s in samples =#
-#=         try =#
-#=             fitness = get_fitness(problem, s.derivtree, p.userargs) =#
-#=             fitnesses[i] = fitness =#
-#=             result.totalevals += 1 =#
-#=             if fitness < result.fitness =#
-#=                 result.fitness = fitness =#
-#=                 copy!(result.tree, s.derivtree) =#
-#=                 result.best_at_eval = result.totalevals =#
-#=                 result.expr = get_expr(s)  =#
-#=             end =#
-#=         catch e =#
-#=             if !isa(e, IncompleteException) =#
-#=                 rethrow(e) =#
-#=             end =#
-#=             fitnesses[i] = realmax(Float64) =#
-#=         end =#
-#=         i += 1 =#
-#=     end =#
-#=     fitnesses =#
-#= end =#
-
-#threaded evaluation of fitnesses
-function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
+function seq_evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
     default_expr)
     fitnesses = Array(Float64, p.num_samples)
     i = 1
+    for s in samples
+        try
+            fitness = get_fitness(problem, s.derivtree, p.userargs)
+            fitnesses[i] = fitness
+            result.totalevals += 1
+            if fitness < result.fitness
+                result.fitness = fitness
+                copy!(result.tree, s.derivtree)
+                result.best_at_eval = result.totalevals
+                result.expr = get_expr(s) 
+            end
+        catch e
+            if !isa(e, IncompleteException)
+                rethrow(e)
+            end
+            fitnesses[i] = realmax(Float64)
+        end
+        i += 1
+    end
+    fitnesses
+end
+
+#threaded evaluation of fitnesses
+function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
+    default_expr)
+    fitnesses = zeros(Float64, p.num_samples)
     #evaluate fitness in parallel
     Threads.@threads for i = 1:p.num_samples
         try
