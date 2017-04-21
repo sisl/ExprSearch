@@ -2,8 +2,10 @@ using RLESUtils, RunUtils, IFTTTUtils
 
 const COMP = gethostname()
 const I_START = 1 
-const I_END = 10 
+const I_END = 20 
 const NOTIFY = false
+
+#uses default config
 
 template_gp(i) =
 """
@@ -44,9 +46,9 @@ notifydone() = sendifttt(;value1="$COMP done")
 
 A = JuliaSource[]
 append!(A, [JuliaSource(template_ce(i)) for i=I_START:I_END])
-#append!(A, [JuliaSource(template_ge(i)) for i=I_START:I_END])
-#append!(A, [JuliaSource(template_gp(i)) for i=I_START:I_END])
-#append!(A, [JuliaSource(template_mc(i)) for i=I_START:I_END])
+append!(A, [JuliaSource(template_ge(i)) for i=I_START:I_END])
+append!(A, [JuliaSource(template_gp(i)) for i=I_START:I_END])
+append!(A, [JuliaSource(template_mc(i)) for i=I_START:I_END])
 #append!(A, [JuliaSource(template_mcts(i)) for i=I_START:I_END])
 
 #include("script.jl")

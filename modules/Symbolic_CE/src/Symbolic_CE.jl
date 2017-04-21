@@ -54,9 +54,9 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
 
                      num_samples::Int64=2000,
                      iterations::Int64=50,
-                     elite_frac::Float64=0.2,
-                     w_new::Float64=0.6,
-                     w_prior::Float64=0.02,
+                     elite_frac::Float64=0.6,
+                     w_new::Float64=0.4,
+                     w_prior::Float64=0.1,
                      maxsteps::Int64=40,
                      default_code::Any=0.0,
 

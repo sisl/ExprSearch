@@ -221,13 +221,14 @@ function master_plot(masterlog::DataFrame; subsample::Int64=25000)
     save(TEX(PLOTFILEROOT * ".tex"), td)
 end
 
-function combine_and_plot(; subsample=25000)
-    combine_ge_logs()
-    combine_gp_logs()
-    combine_mc_logs()
-    combine_mcts_logs()
-    combine_ce_logs()
-    ml = master_log()
+function combine_and_plot(; subsample=25000, b_mc=true, b_mcts=true, b_ge=true, 
+    b_gp=true, b_ce=true)
+    b_ge && combine_ge_logs()
+    b_gp && combine_gp_logs()
+    b_mc && combine_mc_logs()
+    b_mcts && combine_mcts_logs()
+    b_ce && combine_ce_logs()
+    ml = master_log(b_mc=b_mc, b_mcts=b_mcts, b_ge=b_ge, b_gp=b_gp, b_ce=b_ce)
     master_plot(ml; subsample=subsample)
 end
 
