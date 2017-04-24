@@ -64,7 +64,9 @@ function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCT
                      gt_file::AbstractString="gt_easy.jl",
 
                      loginterval::Int64=1000,
-                     vis::Bool=true)
+                     vis::Bool=true,
+                     vis_type::AbstractString="TEX"
+                     )
     srand(seed)
     mkpath(outdir)
 
@@ -82,11 +84,16 @@ function symbolic_mcts(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MCT
                              explorationconst, maxmod, q0, seed, logsys)
     result = exprsearch(mcts_params, problem)
 
+    #manually push! extra info to log
+    push!(logs, "parameters", ["seed", seed])
+    push!(logs, "parameters", ["gt_file", gt_file])
+
     outfile = joinpath(outdir, "$(logfileroot).txt")
     save_log(outfile, logs)
 
     if vis
-        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis"))
+        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
+            output=vis_type)
     end
     @show result.expr
     return result
