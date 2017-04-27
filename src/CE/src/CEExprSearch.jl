@@ -133,7 +133,6 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         
         # Compute elites
         elite_n = round(Int, p.elite_frac * p.num_samples)
-        elite_rewards = fitnesses[order[1:elite_n]]
         elite_samples = samples[order[1:elite_n]] 
 
         # Fit elite distribution
@@ -213,16 +212,18 @@ function seq_evaluate(p::CEESParams, samples::Samples, result::CEESResult, probl
 end
 
 #threaded evaluation of fitnesses
-function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
-    default_expr)
+function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult, 
+    problem::ExprProblem, default_expr)
     fitnesses = zeros(Float64, p.num_samples)
     #evaluate fitness in parallel
+    #for i = 1:p.num_samples #use this to disable threads
     Threads.@threads for i = 1:p.num_samples
         try
             #get_fitness must be thread-safe!
             fitnesses[i] = get_fitness(problem, samples[i].derivtree, p.userargs)
         catch e
             if !isa(e, IncompleteException)
+                println("Exception caught! ", e)
                 rethrow(e)
             end
             fitnesses[i] = realmax(Float64)
