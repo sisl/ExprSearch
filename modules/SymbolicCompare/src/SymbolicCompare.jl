@@ -160,6 +160,7 @@ master_plot(; kwargs...) = master_plot(readtable(MASTERLOG_FILE); kwargs...)
 
 """
 Subsamples the collected data at 'subsample' rate to plot at a lower rate than collected
+Set subsample to 1 to disable.
 """
 function master_plot(masterlog::DataFrame; subsample::Int64=25000)
     D = masterlog 
