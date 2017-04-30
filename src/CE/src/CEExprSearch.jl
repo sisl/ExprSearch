@@ -45,7 +45,7 @@ import Compat.view
 using Reexport
 using ExprSearch
 using PCFGs
-using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems 
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools
 import RLESTypes.SymbolTable
 import DerivationTrees.get_children
 import ExprSearch: get_derivtree, get_expr
@@ -117,7 +117,8 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     pcfg_prior = copy(pcfg) #uniform prior to ensure full support over domain
 
     tree_params = LDTParams(cfg, p.maxsteps)
-    samples = [LinearDerivTree(tree_params) for i=1:p.num_samples] 
+    samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 100)) 
+        for i=1:p.num_samples] 
     fitness = realmax(Float64)
     tstart = CPUtime_start()
     iter = 1

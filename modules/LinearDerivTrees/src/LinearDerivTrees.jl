@@ -48,6 +48,7 @@ using ExprSearch
 @reexport using DerivationTrees
 using GrammaticalEvolution
 using DataStructures
+using RLESUtils, MemPools
 
 import GrammaticalEvolution.Grammar
 import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string, get_sym
@@ -81,8 +82,11 @@ type LinearDerivTree
     actions::LDTActions
 end
 
-function LinearDerivTree(params::LDTParams) 
-    derivtree = DerivationTree(DerivTreeParams(params.grammar))
+function LinearDerivTree(params::LDTParams; nodepool::Union{Void,MemPool}=nothing) 
+    dt_params = DerivTreeParams(params.grammar) 
+    derivtree = (nodepool == nothing) ? 
+        DerivationTree(dt_params) : 
+        DerivationTree(dt_params, nodepool)
     stack = Stack(DerivTreeNode, STACKSIZE)
     actions = LDTActions()
     LinearDerivTree(params, derivtree, stack, actions) 
@@ -222,8 +226,8 @@ Returns true if completed successfully, false otherwise
 function rand!(tree::LinearDerivTree)
     initialize!(tree)
     while !isdone(tree)
-      as = actionspace(tree)
-      step!(tree, rand(as))
+        as = actionspace(tree)
+        step!(tree, rand(as))
     end
     return iscomplete(tree)
 end
