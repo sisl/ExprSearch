@@ -89,8 +89,8 @@ end
 Draw random samples according to pcfg and output them in-place into samples.
 """
 function rand!(samples::Vector{LinearDerivTree}, pcfg::PCFG)
-    Threads.@threads for i=1:length(samples)
-        rand!(samples[i], pcfg)
+    for s in samples
+        rand!(s, pcfg)
     end
 end
 
