@@ -45,7 +45,7 @@ import Compat.view
 using Reexport
 using ExprSearch
 using PCFGs
-using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandChannels
 import RLESTypes.SymbolTable
 import DerivationTrees.get_children
 import ExprSearch: get_derivtree, get_expr
@@ -119,12 +119,14 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     tree_params = LDTParams(cfg, p.maxsteps)
     samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 100)) 
         for i=1:p.num_samples] 
+    rc = RandChannel(p.num_samples, p.maxsteps)
+    wrc_vec = [WrappedRandChannel(rc, 0) for i=1:Threads.nthreads()]
     fitness = realmax(Float64)
     tstart = CPUtime_start()
     iter = 1
     while iter <= p.iterations
         # Draw samples from pcfg
-        rand!(samples, pcfg)
+        parallel_rand!(wrc_vec, samples, pcfg)
 
         # Evaluate fitnesses
         fitnesses = parallel_evaluate(p, samples, result, problem, p.default_expr)
@@ -158,7 +160,9 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         @notify_observer(p.logsys.observer, "code", Any[iter, code])
         @notify_observer(p.logsys.observer, "samples", Any[iter, samples])
         @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, code])
+
         iter += 1
+        resample!(rc)
     end
 
     #dealloc trees in samples
@@ -183,6 +187,15 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "parameters", ["default_expr", string(p.default_expr)])
 
     result 
+end
+
+function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
+    pcfg::PCFG)
+    Threads.@threads for i = 1:length(samples)
+        wrc = wrc_vec[Threads.threadid()]
+        set_channel!(wrc, i)
+        rand!(wrc, samples[i], pcfg)
+    end
 end
 
 #Sequential evaluation of fitnesses
