@@ -75,12 +75,15 @@ Draw a random sample from pcfg.  The output is in-place
 into tree.
 """
 function rand!(tree::LinearDerivTree, pcfg::PCFG)
+    rand!(Base.GLOBAL_RNG, tree, pcfg)
+end
+function rand!(rng::AbstractRNG, tree::LinearDerivTree, pcfg::PCFG)
     probs = pcfg.probs
     initialize!(tree)
     while !isdone(tree)
         as = actionspace(tree)
         sym = get_sym(tree)
-        step!(tree, weighted_rand(as, probs[sym]))
+        step!(tree, weighted_rand(rng, as, probs[sym]))
     end
     iscomplete(tree)
 end
@@ -89,8 +92,11 @@ end
 Draw random samples according to pcfg and output them in-place into samples.
 """
 function rand!(samples::Vector{LinearDerivTree}, pcfg::PCFG)
-    for s in samples
-        rand!(s, pcfg)
+    rand!(Base.GLOBAL_RNG, samples, pcfg)
+end
+function rand!(rng::AbstractRNG, samples::Vector{LinearDerivTree}, pcfg::PCFG)
+    for i = 1:length(samples)
+        rand!(rng, samples[i], pcfg)
     end
 end
 
@@ -99,11 +105,14 @@ Draw N random samples from pcfg.  Derivation trees are limited to maxsteps.
 Outputs a vector of LinearDerivTrees.
 """
 function rand(pcfg::PCFG, N::Int64, maxsteps::Int64)
+    rand(Base.GLOBAL_RNG, pcfg, N, maxsteps)
+end
+function rand(rng::AbstractRNG, pcfg::PCFG, N::Int64, maxsteps::Int64)
     params = LDTParams(pcfg.cfg, maxsteps)
     samples = Array(LinearDerivTree, N)
     for i = 1:N
         s = LinearDerivTree(params)
-        rand!(s, pcfg)
+        rand!(rng, s, pcfg)
         samples[i] = s
     end
     samples

@@ -45,7 +45,7 @@ import Compat.view
 using Reexport
 using ExprSearch
 using PCFGs
-using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems 
+using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandChannels
 import RLESTypes.SymbolTable
 import DerivationTrees.get_children
 import ExprSearch: get_derivtree, get_expr
@@ -117,23 +117,25 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     pcfg_prior = copy(pcfg) #uniform prior to ensure full support over domain
 
     tree_params = LDTParams(cfg, p.maxsteps)
-    samples = [LinearDerivTree(tree_params) for i=1:p.num_samples] 
+    samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 100)) 
+        for i=1:p.num_samples] 
+    rc = RandChannel(p.num_samples, p.maxsteps)
+    wrc_vec = [WrappedRandChannel(rc, 0) for i=1:Threads.nthreads()]
     fitness = realmax(Float64)
     tstart = CPUtime_start()
     iter = 1
     while iter <= p.iterations
         # Draw samples from pcfg
-        rand!(samples, pcfg)
+        parallel_rand!(wrc_vec, samples, pcfg)
 
         # Evaluate fitnesses
-        fitnesses = evaluate(p, samples, result, problem, p.default_expr)
+        fitnesses = parallel_evaluate(p, samples, result, problem, p.default_expr)
 
         # Sort in ascending order, lower is better
         order = sortperm(fitnesses)
         
         # Compute elites
         elite_n = round(Int, p.elite_frac * p.num_samples)
-        elite_rewards = fitnesses[order[1:elite_n]]
         elite_samples = samples[order[1:elite_n]] 
 
         # Fit elite distribution
@@ -158,7 +160,9 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         @notify_observer(p.logsys.observer, "code", Any[iter, code])
         @notify_observer(p.logsys.observer, "samples", Any[iter, samples])
         @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, code])
+
         iter += 1
+        resample!(rc)
     end
 
     #dealloc trees in samples
@@ -185,7 +189,17 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     result 
 end
 
-function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
+function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
+    pcfg::PCFG)
+    Threads.@threads for i = 1:length(samples)
+        wrc = wrc_vec[Threads.threadid()]
+        set_channel!(wrc, i)
+        rand!(wrc, samples[i], pcfg)
+    end
+end
+
+#Sequential evaluation of fitnesses
+function seq_evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::ExprProblem, 
     default_expr)
     fitnesses = Array(Float64, p.num_samples)
     i = 1
@@ -207,6 +221,39 @@ function evaluate(p::CEESParams, samples::Samples, result::CEESResult, problem::
             fitnesses[i] = realmax(Float64)
         end
         i += 1
+    end
+    fitnesses
+end
+
+#threaded evaluation of fitnesses
+function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult, 
+    problem::ExprProblem, default_expr)
+    fitnesses = zeros(Float64, p.num_samples)
+    #evaluate fitness in parallel
+    #for i = 1:p.num_samples #use this to disable threads
+    Threads.@threads for i = 1:p.num_samples
+        try
+            #get_fitness must be thread-safe!
+            fitnesses[i] = get_fitness(problem, samples[i].derivtree, p.userargs)
+        catch e
+            if !isa(e, IncompleteException)
+                println("Exception caught! ", e)
+                rethrow(e)
+            end
+            fitnesses[i] = realmax(Float64)
+        end
+    end
+    #update global result
+    for i = 1:p.num_samples
+        fitness = fitnesses[i]
+        result.totalevals += 1
+        if fitness < result.fitness
+            s = samples[i]
+            result.fitness = fitness
+            copy!(result.tree, s.derivtree)
+            result.best_at_eval = result.totalevals
+            result.expr = get_expr(s) 
+        end
     end
     fitnesses
 end
