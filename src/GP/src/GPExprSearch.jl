@@ -332,7 +332,7 @@ end
 """
 Evaluate fitness function
 """
-function evaluate!(p::GPESParams, pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
+function seq_evaluate(p::GPESParams, pop::GPPopulation, result::GPESResult, problem::ExprProblem, 
     default_expr)
     for ind in pop
         if isnull(ind.fitness)
@@ -354,6 +354,43 @@ function evaluate!(p::GPESParams, pop::GPPopulation, result::GPESResult, problem
                 ind.expr = default_expr
                 ind.fitness = Nullable{Float64}(realmax(Float64))
             end
+        end
+    end
+end
+
+"""
+Threaded evaluation of fitnesses
+"""
+function parallel_evaluate(p::GPESParams, pop::GPPopulation, result::GPESResult, 
+    problem::ExprProblem, default_expr)
+    #evaluate fitness in parallel
+    #for i = 1:p.num_samples #use this to disable threads
+    Threads.@threads for i = 1:length(pop)
+        ind = pop[i]
+        if isnull(ind.fitness)
+            try
+                fitness = get_fitness(problem, ind.derivtree, p.userargs)
+                ind.fitness = Nullable{Float64}(fitness) 
+                ind.expr = get_expr(ind.derivtree)
+            catch e
+                if !isa(e, IncompleteException)
+                    println("Exception caught! ", e)
+                    rethrow(e)
+                end
+                ind.fitness = Nullable{Float64}(realmax(Float64))
+            end
+        end
+    end
+    #update global result
+    for i = 1:length(pop)
+        ind = pop[i]
+        fitness = get(ind.fitness)
+        result.totalevals += 1
+        if fitness < result.fitness
+            result.fitness = fitness
+            copy!(result.tree, ind.derivtree)
+            result.best_at_eval = result.totalevals
+            result.expr = get_expr(ind.derivtree) 
         end
     end
 end
@@ -453,7 +490,7 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
     n_mutate = floor(Int64, p.mutate_frac*p.pop_size)
     n_rand = floor(Int64, p.rand_frac*p.pop_size)
 
-    evaluate!(p, pop, result, problem, p.default_expr)
+    parallel_evaluate(p, pop, result, problem, p.default_expr)
     sort!(pop)
     newpop = GPPopulation()
 
@@ -521,7 +558,7 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
         rm_tree!(ind.derivtree)
     end
 
-    evaluate!(p, newpop, result, problem, p.default_expr)
+    parallel_evaluate(p, newpop, result, problem, p.default_expr)
     sort!(newpop)
 
     newpop
