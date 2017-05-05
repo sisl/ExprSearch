@@ -163,9 +163,8 @@ Normalize the sum of each probability vector in pcfg
 """
 function normalize!(pcfg::PCFG)
     for v in values(pcfg.probs)
-        s = sum(v)
-        if s > 0.0 #make sure valid denom
-            map!(x->x/s, v)
+        if sum(v) > 0.0 #make sure valid denom
+            normalize!(v, 1)
         else #set to uniform, catches NaNs and 0.0
             len = length(v)
             fill!(v, 1.0/len)
