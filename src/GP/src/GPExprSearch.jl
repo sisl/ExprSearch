@@ -130,7 +130,7 @@ function gp_search(p::GPESParams, problem::ExprProblem)
     result = GPESResult(grammar) 
 
     pop = GPPopulation()
-    initialize!(pop, grammar, mdr, mda, p.pop_size, p.maxdepth)
+    ramped_initialize!(pop, grammar, mdr, mda, p.pop_size, p.maxdepth)
     fitness = realmax(Float64)
     iter = 1
     tstart = CPUtime_start()
@@ -270,7 +270,7 @@ end
 """
 Initialize population.  Ramped initialization.
 """
-function initialize!(pop::GPPopulation, grammar::Grammar, mdr::MinDepthByRule, 
+function ramped_initialize!(pop::GPPopulation, grammar::Grammar, mdr::MinDepthByRule, 
     mda::MinDepthByAction, pop_size::Int64, maxdepth::Int64)
 
     empty!(pop)
