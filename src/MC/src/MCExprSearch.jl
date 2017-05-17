@@ -54,6 +54,8 @@ import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_gr
     get_derivtree, get_expr
 import Base: isless, copy!
 
+const DEFAULT_EXPR = :()
+
 include("logdefs.jl")
 
 type MCESParams <: SearchParams
@@ -62,12 +64,13 @@ type MCESParams <: SearchParams
 
     #MC
     n_samples::Int64 #samples
+    default_expr        #if derivation is incompelete, use default expr
     logsys::LogSystem
     userargs::SymbolTable
 end
 MCESParams(maxsteps::Int64, n_samples::Int64, logsys::LogSystem=logsystem(); 
     userargs::SymbolTable=SymbolTable()) =  
-    MCESParams(maxsteps, n_samples, logsys, userargs)
+    MCESParams(maxsteps, n_samples, DEFAULT_EXPR, logsys, userargs)
 
 type MCState
     tree::LinearDerivTree
@@ -145,10 +148,18 @@ function mc_search(p::MCESParams, problem::ExprProblem)
 end
 
 #initialize to random state
-function sample!(s::MCState, p::MCESParams, problem::ExprProblem, retries::Int64=typemax(Int64))
-    rand_with_retry!(s.tree, retries) #sample uniformly
-    s.expr = get_expr(s.tree)
-    s.fitness = get_fitness(problem, get_derivtree(s.tree), p.userargs)
+function sample!(s::MCState, p::MCESParams, problem::ExprProblem)
+    rand!(s.tree) #sample uniformly
+    try
+        s.expr = get_expr(s.tree)
+        s.fitness = get_fitness(problem, get_derivtree(s.tree), p.userargs)
+    catch e
+        if !isa(e, IncompleteException)
+            rethrow(e)
+        end
+        s.expr = p.default_expr
+        s.fitness = realmax(Float64)
+    end
     s
 end
 

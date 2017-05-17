@@ -2,7 +2,7 @@ using RLESUtils, RunUtils, IFTTTUtils
 
 const COMP = gethostname()
 const I_START = 1 
-const I_END = 20 
+const I_END = 50
 const NOTIFY = false
 
 #uses default config

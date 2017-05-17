@@ -99,10 +99,23 @@ function ge_search(p::GEESParams, problem::ExprProblem)
     tree_params = LDTParams(grammar, p.genome_size)
     tree = LinearDerivTree(tree_params)
 
-    pop = ExamplePopulation(p.pop_size, p.genome_size)
-    fitness = realmax(Float64)
-    iter = 1
     tstart = CPUtime_start()
+    #first iter is random init
+    iter = 1
+    pop = ExamplePopulation(p.pop_size, p.genome_size)
+    evaluate!(grammar, pop, p, problem, tree)
+    sort!(pop)
+    fitness = pop[1].fitness 
+    code = pop[1].code
+    nevals = iter * p.pop_size
+    @notify_observer(p.logsys.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
+    @notify_observer(p.logsys.observer, "fitness", Any[iter, fitness])
+    @notify_observer(p.logsys.observer, "fitness5", Any[iter, [pop[i].fitness for i=1:5]...])
+    @notify_observer(p.logsys.observer, "code", Any[iter, string(code)])
+    @notify_observer(p.logsys.observer, "population", Any[iter, pop])
+    @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, string(code)])
+    iter += 1
+
     while iter <= p.max_iters
         pop = generate(grammar, pop, p.top_keep, p.top_seed, p.rand_frac, p.prob_mutation, 
             p.mutation_rate, p, problem::ExprProblem, tree)

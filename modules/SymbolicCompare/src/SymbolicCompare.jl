@@ -162,7 +162,9 @@ master_plot(; kwargs...) = master_plot(readtable(MASTERLOG_FILE); kwargs...)
 Subsamples the collected data at 'subsample' rate to plot at a lower rate than collected
 Set subsample to 1 to disable.
 """
-function master_plot(masterlog::DataFrame; subsample::Int64=25000)
+function master_plot(masterlog::DataFrame; 
+    plotlog_file::AbstractString=PLOTLOG_FILE, plotfileroot::AbstractString=PLOTFILEROOT,
+    subsample::Int64=2000)
     D = masterlog 
 
     #aggregate over seed
@@ -174,7 +176,7 @@ function master_plot(masterlog::DataFrame; subsample::Int64=25000)
     rename!(D, Symbol("fitness_MathUtils.SEM"), :fitness_SEM) 
     rename!(D, Symbol("elapsed_cpu_s_MathUtils.SEM"), :elapsed_cpu_s_SEM) 
 
-    writetable(PLOTLOG_FILE, D)
+    writetable(plotlog_file, D)
 
     td = TikzDocument()
     algo_names = unique(D[:algorithm])
@@ -218,11 +220,11 @@ function master_plot(masterlog::DataFrame; subsample::Int64=25000)
         title="Fitness vs. Elapsed CPU Time", legendPos="north east"))
     push!(td, tp)
 
-    save(PDF(PLOTFILEROOT * ".pdf"), td)
-    save(TEX(PLOTFILEROOT * ".tex"), td)
+    save(PDF(plotfileroot * ".pdf"), td)
+    save(TEX(plotfileroot * ".tex"), td)
 end
 
-function combine_and_plot(; subsample=25000, b_mc=true, b_mcts=true, b_ge=true, 
+function combine_and_plot(; subsample=2000, b_mc=true, b_mcts=true, b_ge=true, 
     b_gp=true, b_ce=true)
     b_ge && combine_ge_logs()
     b_gp && combine_gp_logs()

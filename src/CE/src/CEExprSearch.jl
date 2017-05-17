@@ -117,7 +117,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     pcfg_prior = copy(pcfg) #uniform prior to ensure full support over domain
 
     tree_params = LDTParams(cfg, p.maxsteps)
-    samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 100)) 
+    samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 500)) 
         for i=1:p.num_samples] 
     rc = RandChannel(p.num_samples, p.maxsteps)
     wrc_vec = [WrappedRandChannel(rc, 0) for i=1:Threads.nthreads()]
@@ -191,6 +191,7 @@ end
 
 function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
     pcfg::PCFG)
+    #for i = 1:length(samples)
     Threads.@threads for i = 1:length(samples)
         wrc = wrc_vec[Threads.threadid()]
         set_channel!(wrc, i)
@@ -228,7 +229,7 @@ end
 #threaded evaluation of fitnesses
 function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult, 
     problem::ExprProblem, default_expr)
-    fitnesses = zeros(Float64, p.num_samples)
+    fitnesses = fill(realmax(Float64), p.num_samples)
     #evaluate fitness in parallel
     #for i = 1:p.num_samples #use this to disable threads
     Threads.@threads for i = 1:p.num_samples

@@ -57,7 +57,7 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
 
                      gt_file::AbstractString="gt_easy.jl",
 
-                     loginterval::Int64=1000,
+                     loginterval::Int64=2000,
                      vis::Bool=true,
                      vis_type::AbstractString="TEX"
                      )
