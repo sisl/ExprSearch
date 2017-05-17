@@ -57,7 +57,8 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
                      elite_frac::Float64=0.6,
                      w_new::Float64=0.4,
                      w_prior::Float64=0.1,
-                     maxsteps::Int64=40,
+                     maxdepth::Int64=10,
+                     randchannel_width::Int64=60,
                      default_code::Any=0.0,
 
                      gt_file::AbstractString="gt_easy.jl",
@@ -78,7 +79,7 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
     problem = Symbolic(gt_file)
 
     ce_params = CEESParams(num_samples, iterations, elite_frac, w_new, 
-        w_prior, maxsteps, default_code, logsys)
+        w_prior, maxdepth, default_code, randchannel_width, logsys)
 
     result = exprsearch(ce_params, problem)
 

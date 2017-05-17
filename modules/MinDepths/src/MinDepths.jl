@@ -1,7 +1,7 @@
 # *****************************************************************************
 # Written by Ritchie Lee, ritchie.lee@sv.cmu.edu
 # *****************************************************************************
-# Copyright ã 2015, United States Government, as represented by the
+# Copyright ã ``2015, United States Government, as represented by the
 # Administrator of the National Aeronautics and Space Administration. All
 # rights reserved.  The Reinforcement Learning Encounter Simulator (RLES)
 # platform is licensed under the Apache License, Version 2.0 (the "License");
@@ -32,71 +32,78 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module Symbolic_GP
+"""
+Computes the min depths by rule and action for a grammar
+"""
+module MinDepths
 
-export symbolic_gp
+export MinDepthByRule, MinDepthByAction
+export min_depth_rule, min_depth_actions 
 
-using ExprSearch, SymbolicRegression, DerivTreeVis
-using ExprSearch.GP
-using RLESUtils, LogSystems, Loggers
-using Base.Test
+using ExprSearch
+using GrammaticalEvolution
 
-const DIR = dirname(@__FILE__)
-const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+typealias MinDepthByRule Dict{Symbol,Int64}
+typealias MinDepthByAction Dict{Symbol,Vector{Int64}}
 
 """
-Example usage:
-symbolic_gp(; seed=1)
+Compute minimum depth for each rule
 """
-function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
-                     seed=1,
-                     logfileroot::AbstractString="symbolic_gp_log",
-
-                     pop_size::Int64=2000,
-                     maxdepth::Int64=10,
-                     iterations::Int64=50,
-                     tournament_size::Int64=20,
-                     top_keep::Float64=0.1,
-                     crossover_frac::Float64=0.4,
-                     mutate_frac::Float64=0.2,
-                     rand_frac::Float64=0.2,
-                     default_code::Any=0.0,
-
-                     gt_file::AbstractString="gt_easy.jl",
-
-                     vis::Bool=true,
-                     vis_type::AbstractString="TEX"
-                     )
-    srand(seed)
-    mkpath(outdir)
-
-    logsys = GP.logsystem()
-    empty_listeners!(logsys)
-    send_to!(STDOUT, logsys, ["verbose1", "current_best_print", "result"])
-    logs = TaggedDFLogger()
-    send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
-        "fitness5", "parameters", "result"])
-
-    problem = Symbolic(gt_file)
-  
-    gp_params = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep,
-        crossover_frac, mutate_frac, rand_frac, default_code, logsys)
-  
-    result = exprsearch(gp_params, problem)
-
-    #manually push! extra info to log
-    push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["gt_file", gt_file])
-
-    outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
-
-    if vis
-        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            output=vis_type)
+function min_depth_rule(grammar::Grammar)
+    d = MinDepthByRule()
+    changed = Dict{Symbol,Bool}()
+    for (k,v) in grammar.rules
+        d[k] = typemax(Int64)/2
+        changed[k] = true
     end
-    @show result.expr
-    return result
+    while any(values(changed))
+        for (k,rule) in grammar.rules 
+           d_k = min_depth_rule(d, rule) 
+           changed[k] = d[k] != d_k
+           d[k] = d_k 
+       end
+    end
+    d
+end
+
+min_depth_rule(d::MinDepthByRule, rule::ReferencedRule) = d[rule.symbol]
+min_depth_rule(d::MinDepthByRule, rule::Union{RangeRule,Symbol}) = 0 #terminals
+min_depth_rule(d::MinDepthByRule, x::Any) = 0 #terminals such as constants?
+function min_depth_rule(d::MinDepthByRule, rule::OrRule)
+    1 + minimum(map(r->min_depth_rule(d,r), rule.values))
+end
+function min_depth_rule(d::MinDepthByRule, rule::ExprRule)
+    a = filter(r->isa(r,ReferencedRule), rule.args)
+    1 + maximum(map(r->min_depth_rule(d,r), a))
+end
+function min_depth_rule(d::MinDepthByRule, rule::AndRule)
+    a = filter(r->isa(r,ReferencedRule), rule.values)
+    1 + maximum(map(r->min_depth_rule(d,r), a))
+end
+
+"""
+Compute minimum depth per action of decision rule
+"""
+function min_depth_actions(grammar::Grammar)
+    d = min_depth_rule(grammar)
+    da = min_depth_actions(d, grammar)
+    da
+end
+function min_depth_actions(d::MinDepthByRule, grammar::Grammar)
+    da = MinDepthByAction()
+    for (k,rule) in grammar.rules
+        da[k] = min_depth_actions(d, rule)
+    end
+    da
+end
+min_depth_actions(d::MinDepthByRule, rule::ReferencedRule) = Int64[d[rule.symbol]]
+min_depth_actions(d::MinDepthByRule, rule::Union{Symbol,Terminal}) = zeros(Int64, 1) 
+min_depth_actions(d::MinDepthByRule, rule::RangeRule) = zeros(Int64, length(rule.range))
+function min_depth_actions(d::MinDepthByRule, rule::OrRule)
+    1 + Int64[min_depth_rule(d, v) for v in rule.values]
+end
+function min_depth_actions(d::MinDepthByRule, rule::Union{AndRule,ExprRule})
+    Int64[min_depth_rule(d, rule)]
 end
 
 end #module

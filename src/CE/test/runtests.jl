@@ -34,3 +34,24 @@
 
 using ExprSearch
 using ExprSearch.CE
+
+using SymbolicRegression
+using RLESUtils, MemPools, RandChannels
+using DepthAwarePCFGs
+using LinearDerivTrees
+using AbstractTrees
+
+const MAXDEPTH = 10
+const NUM_SAMPLES = 20
+const RANDCHANNEL_WIDTH = 500
+
+problem = Symbolic()
+cfg = get_grammar(problem)
+dpcfg = DepthAwarePCFG(cfg)
+tree_params = LDTParams(cfg, typemax(Int64))
+samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 500)) 
+    for i=1:NUM_SAMPLES] 
+rc = RandChannel(NUM_SAMPLES, RANDCHANNEL_WIDTH)
+wrc_vec = [WrappedRandChannel(rc, 0) for i=1:Threads.nthreads()]
+
+ExprSearch.CE.ramped_rand!(wrc_vec, samples, dpcfg, MAXDEPTH)

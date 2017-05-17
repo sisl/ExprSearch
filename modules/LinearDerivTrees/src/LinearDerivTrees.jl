@@ -41,7 +41,7 @@ module LinearDerivTrees
 export Grammar
 export LDTParams, LDTActions, LinearDerivTree, AbstractTreeOrder, DepthFirst, BreadthFirst  
 export initialize!, step!, play!, actionspace, isdone, iscomplete, get_derivtree, get_expr
-export rand_with_retry!, maxlength
+export rand_with_retry!, maxlength, current_opennode
 
 using Reexport
 using ExprSearch 
@@ -54,6 +54,7 @@ import GrammaticalEvolution.Grammar
 import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string, get_sym
 import ExprSearch: get_derivtree
 import Base: length, push!, convert, rand!, getindex, empty!, copy!
+import AbstractTrees.print_tree
 
 const STACKSIZE = 50 #initial stack allocation size, default value 1024 allocates too much unused memory
 
@@ -120,6 +121,11 @@ get_derivtree(tree::LinearDerivTree) = tree.derivtree
 function pretty_string(tree::LinearDerivTree, fmt::Format, capitalize::Bool=false) 
     pretty_string(tree.derivtree, fmt, capitalize)
 end
+
+"""
+Peek at top of opennode stack without popping
+"""
+current_opennode(tree::LinearDerivTree) = first(tree.opennodes)
 
 function initialize!(tree::LinearDerivTree)
   root = initialize!(tree.derivtree)
@@ -246,5 +252,10 @@ function rand_with_retry!(tree::LinearDerivTree, retries::Int64=5)
 end
 
 get_sym(tree::LinearDerivTree) = isempty(tree.opennodes) ? :() : get_sym(top(tree.opennodes))
+
+#interface to AbstractTrees.jl
+function print_tree(io::IO, tree::LinearDerivTree, args...; kwargs...)
+    print_tree(io, tree.derivtree, args...; kwargs...)
+end
 
 end #module

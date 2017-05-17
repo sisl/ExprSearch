@@ -1,7 +1,7 @@
 # *****************************************************************************
 # Written by Ritchie Lee, ritchie.lee@sv.cmu.edu
 # *****************************************************************************
-# Copyright ã 2015, United States Government, as represented by the
+# Copyright ã ``2015, United States Government, as represented by the
 # Administrator of the National Aeronautics and Space Administration. All
 # rights reserved.  The Reinforcement Learning Encounter Simulator (RLES)
 # platform is licensed under the Apache License, Version 2.0 (the "License");
@@ -32,65 +32,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using ExprSearch, SymbolicRegression
-using ExprSearch.GP
+using ExprSearch
+using MinDepths
+using Base.Test
+using SymbolicRegression
 
-using RLESUtils, TreeUtils
-using DerivTreeVis
+const MINDEPTHBYRULE = MinDepthByRule(
+    :start => 2,
+    :ex => 2,
+    :sum => 3,
+    :product => 3,
+    :value => 1,
+    :digit => 0)
 
-function test_rand(target_depth=5)
+const MINDEPTHBYACTION = MinDepthByAction(
+    :start => Int64[2],
+    :ex => Int64[4,4,3,2],
+    :sum => Int64[3],
+    :product => Int64[3],
+    :value => Int64[1,1,1],
+    :digit => Int64[0,0,0,0,0,0,0,0,0,0])
+
+function test_mindepth()
     problem = Symbolic("gt_easy.jl")
     grammar = get_grammar(problem)
-    mda = min_depth_actions(grammar)
-    for i = 1:5
-        ind = rand(grammar, mda, target_depth)
-        @show get_expr(ind.derivtree)
-    end
+    d = min_depth_rule(grammar)
+    @test d == MINDEPTHBYRULE 
+    da = min_depth_actions(d, grammar)
+    @test da == MINDEPTHBYACTION
 end
 
-function test_randnode()
-    problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
-    grammar = get_grammar(problem)
-    mda = min_depth_actions(grammar)
-    ind = rand(grammar, mda, 5) 
-    node = rand_node(ind.derivtree.root)
-end
 
-function test_crossover()
-    problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
-    grammar = get_grammar(problem)
-    mda = min_depth_actions(grammar)
-    ind1 = rand(grammar, mda, 5) 
-    node1 = rand_node(ind1.derivtree.root)
-    derivtreevis(ind1.derivtree, "node1")
-    ind2 = rand(grammar, mda, 5) 
-    node2 = rand_node(ind2.derivtree.root)
-    derivtreevis(ind2.derivtree, "node2")
-    (ind3, ind4) = crossover(ind1, ind2, grammar,5)
-    derivtreevis(ind3.derivtree, "node3")
-    derivtreevis(ind4.derivtree, "node4")
-end
-
-function test_maxdepth()
-    problem = Symbolic()
-    grammar = get_grammar(problem)
-    mda = min_depth_actions(grammar)
-    for i = 1:5
-        ind = rand(grammar, mda, 5)
-        @show max_depth(ind)
-        derivtreevis(ind.derivtree, "ind$i")
-    end
-end
-
-function test_mutate()
-    problem = Symbolic()
-    p = GPESParams(10,5,10,10,0.1,0.4,0.2,0.2,0.0)
-    grammar = get_grammar(problem)
-    mda = min_depth_actions(grammar)
-    ind1 = rand(grammar, mda, 10) 
-    derivtreevis(ind1.derivtree, "ind1")
-    ind2 = mutate(ind1, grammar, mda, 10) 
-    derivtreevis(ind2.derivtree, "ind2")
-end

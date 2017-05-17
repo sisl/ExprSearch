@@ -40,12 +40,11 @@ module GP
 
 export GPESParams, GPESResult, gp_search, exprsearch, SearchParams, SearchResult, get_derivtree
 export GPPopulation, GPIndividual
-export MinDepthByRule, MinDepthByAction, min_depth_rule, min_depth_actions
 export crossover, mutate, max_depth
 
 import Compat.view
 using Reexport
-using ExprSearch
+using ExprSearch, MinDepths
 using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeIterators, TreeUtils
 import RLESTypes.SymbolTable
 import DerivationTrees.get_children
@@ -61,9 +60,6 @@ import DerivationTrees: initialize!, max_depth
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: copy!, sort!, isless, resize!, empty!, push!, pop!, length, start, next, done, 
     rand, getindex
-
-typealias MinDepthByRule Dict{Symbol,Int64}
-typealias MinDepthByAction Dict{Symbol,Vector{Int64}}
 
 immutable RuleNotFoundException <: Exception end
 immutable DepthExceededException <: Exception end
@@ -129,11 +125,24 @@ function gp_search(p::GPESParams, problem::ExprProblem)
     mda = min_depth_actions(mdr, grammar)
     result = GPESResult(grammar) 
 
+    tstart = CPUtime_start()
+
+    #first iter is ramped init
+    iter = 1
     pop = GPPopulation()
     ramped_initialize!(pop, grammar, mdr, mda, p.pop_size, p.maxdepth)
-    fitness = realmax(Float64)
-    iter = 1
-    tstart = CPUtime_start()
+    parallel_evaluate(p, pop, result, problem, p.default_expr)
+    sort!(pop)
+    fitness = get(pop[1].fitness)
+    code = string(pop[1].expr)
+    nevals = iter * p.pop_size
+    @notify_observer(p.logsys.observer, "elapsed_cpu_s", [nevals, CPUtime_elapsed_s(tstart)]) 
+    @notify_observer(p.logsys.observer, "fitness", Any[iter, fitness])
+    @notify_observer(p.logsys.observer, "code", Any[iter, code])
+    @notify_observer(p.logsys.observer, "population", Any[iter, pop])
+    @notify_observer(p.logsys.observer, "current_best", [nevals, fitness, code])
+    iter += 1
+
     while iter <= p.iterations
         pop = generate(p, grammar, mda, pop, result, problem)
         ind = best_ind(pop)
@@ -207,65 +216,6 @@ end
 
 max_depth(ind::GPIndividual) = max_depth(ind.derivtree)
 
-"""
-Compute minimum depth for each rule
-"""
-function min_depth_rule(grammar::Grammar)
-    d = MinDepthByRule()
-    changed = Dict{Symbol,Bool}()
-    for (k,v) in grammar.rules
-        d[k] = typemax(Int64)/2
-        changed[k] = true
-    end
-    while any(values(changed))
-        for (k,rule) in grammar.rules 
-           d_k = min_depth_rule(d, rule) 
-           changed[k] = d[k] != d_k
-           d[k] = d_k 
-       end
-    end
-    d
-end
-
-min_depth_rule(d::MinDepthByRule, rule::ReferencedRule) = d[rule.symbol]
-min_depth_rule(d::MinDepthByRule, rule::Union{RangeRule,Symbol}) = 0 #terminals
-min_depth_rule(d::MinDepthByRule, x::Any) = 0 #terminals such as constants?
-function min_depth_rule(d::MinDepthByRule, rule::OrRule)
-    1 + minimum(map(r->min_depth_rule(d,r), rule.values))
-end
-function min_depth_rule(d::MinDepthByRule, rule::ExprRule)
-    a = filter(r->isa(r,ReferencedRule), rule.args)
-    1 + maximum(map(r->min_depth_rule(d,r), a))
-end
-function min_depth_rule(d::MinDepthByRule, rule::AndRule)
-    a = filter(r->isa(r,ReferencedRule), rule.values)
-    1 + maximum(map(r->min_depth_rule(d,r), a))
-end
-
-"""
-Compute minimum depth per action of decision rule
-"""
-function min_depth_actions(grammar::Grammar)
-    d = min_depth_rule(grammar)
-    da = min_depth_actions(d, grammar)
-    da
-end
-function min_depth_actions(d::MinDepthByRule, grammar::Grammar)
-    da = MinDepthByAction()
-    for (k,rule) in grammar.rules
-        da[k] = min_depth_actions(d, rule)
-    end
-    da
-end
-min_depth_actions(d::MinDepthByRule, rule::ReferencedRule) = Int64[d[rule.symbol]]
-min_depth_actions(d::MinDepthByRule, rule::Union{Symbol,Terminal}) = zeros(Int64, 1) 
-min_depth_actions(d::MinDepthByRule, rule::RangeRule) = zeros(Int64, length(rule.range))
-function min_depth_actions(d::MinDepthByRule, rule::OrRule)
-    1 + Int64[min_depth_rule(d, v) for v in rule.values]
-end
-function min_depth_actions(d::MinDepthByRule, rule::Union{AndRule,ExprRule})
-    Int64[min_depth_rule(d, rule)]
-end
 
 """
 Initialize population.  Ramped initialization.

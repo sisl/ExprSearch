@@ -100,6 +100,7 @@ function ge_search(p::GEESParams, problem::ExprProblem)
     tree = LinearDerivTree(tree_params)
 
     tstart = CPUtime_start()
+
     #first iter is random init
     iter = 1
     pop = ExamplePopulation(p.pop_size, p.genome_size)

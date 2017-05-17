@@ -44,7 +44,7 @@ export Samples
 import Compat.view
 using Reexport
 using ExprSearch
-using PCFGs
+using DepthAwarePCFGs
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandChannels
 import RLESTypes.SymbolTable
 import DerivationTrees.get_children
@@ -73,18 +73,20 @@ immutable CEESParams <: SearchParams
     num_samples::Int64  #number of samples
     iterations::Int64     #number of iterations
     elite_frac::Float64 #fraction of samples considered elite
-    w_new::Float64      #blend new/old distributions (w_new) * pcfg_new + (1-w_new) * pcfg_old
-    w_prior::Float64      #blend with prior pcfg = (1-w_prior) * pcfg + (w_prior) * pcfg_prior
-    maxsteps::Int64     #maximum number of steps in derivation 
+    w_new::Float64      #blend new/old distributions (w_new) * dpcfg_new + (1-w_new) * dpcfg_old
+    w_prior::Float64      #blend with prior dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
+    maxdepth::Int64     #maximum depth of derivation tree (steps is unlimited)
     default_expr        #if derivation is incomplete, use default expr
+    randchannel_width::Int64  #number of random numbers to pre-generate per sample
     logsys::LogSystem   #to manage logging
     userargs::SymbolTable #passed to get_fitness if specified
 end
 function CEESParams(num_samples::Int64, iterations::Int64, elite_frac::Float64,
-    w_new::Float64, w_prior::Float64, maxsteps::Int64, default_expr, 
+    w_new::Float64, w_prior::Float64, maxdepth::Int64, default_expr, randchannel_width::Int64,
     logsys::LogSystem=logsystem(); userargs::SymbolTable=SymbolTable()) 
-    CEESParams(num_samples, iterations, elite_frac, w_new, w_prior, maxsteps, default_expr, 
-        logsys, userargs)
+
+    CEESParams(num_samples, iterations, elite_frac, w_new, w_prior, maxdepth, default_expr, 
+        randchannel_width, logsys, userargs)
 end
 
 type CEESResult <: SearchResult
@@ -112,21 +114,26 @@ function ce_search(p::CEESParams, problem::ExprProblem)
 
     cfg = get_grammar(problem)
     result = CEESResult(cfg) 
-    pcfg = PCFG(cfg) #initialize to uniform probabilities
-    pcfg_new = copy(pcfg) #for blending of new and old
-    pcfg_prior = copy(pcfg) #uniform prior to ensure full support over domain
+    dpcfg = DepthAwarePCFG(cfg) #initialize to uniform probabilities
+    dpcfg_new = copy(dpcfg) #for blending of new and old
+    dpcfg_prior = copy(dpcfg) #uniform prior to ensure full support over domain
 
-    tree_params = LDTParams(cfg, p.maxsteps)
+    tree_params = LDTParams(cfg, typemax(Int64))
     samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 500)) 
         for i=1:p.num_samples] 
-    rc = RandChannel(p.num_samples, p.maxsteps)
+    rc = RandChannel(p.num_samples, p.randchannel_width)
     wrc_vec = [WrappedRandChannel(rc, 0) for i=1:Threads.nthreads()]
     fitness = realmax(Float64)
+
     tstart = CPUtime_start()
     iter = 1
     while iter <= p.iterations
-        # Draw samples from pcfg
-        parallel_rand!(wrc_vec, samples, pcfg)
+        # Draw samples from dpcfg
+        #if iter == 1
+            #ramped_rand!(wrc_vec, samples, dpcfg, p.maxdepth)
+        #else
+            parallel_rand!(wrc_vec, samples, dpcfg, p.maxdepth)
+        #end
 
         # Evaluate fitnesses
         fitnesses = parallel_evaluate(p, samples, result, problem, p.default_expr)
@@ -139,15 +146,15 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         elite_samples = samples[order[1:elite_n]] 
 
         # Fit elite distribution
-        fit_mle!(pcfg_new, elite_samples)
+        fit_mle!(dpcfg_new, elite_samples)
 
         # Blend old and new distributions 
-        # pcfg = (w_new) * pcfg_new + (1-w_new) * pcfg_old
-        weighted_sum!(pcfg, 1.0-p.w_new, pcfg_new, p.w_new)
+        # dpcfg = (w_new) * dpcfg_new + (1-w_new) * dpcfg_old
+        weighted_sum!(dpcfg, 1.0-p.w_new, dpcfg_new, p.w_new)
 
         # Include uniform prior
-        # pcfg = (1-w_prior) * pcfg + (w_prior) * pcfg_prior
-        weighted_sum!(pcfg, 1.0-p.w_prior, pcfg_prior, p.w_prior)
+        # dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
+        weighted_sum!(dpcfg, 1.0-p.w_prior, dpcfg_prior, p.w_prior)
 
         @assert result.fitness <= fitnesses[1] #result.fitness should be tracking global minimum
 
@@ -183,19 +190,34 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "parameters", ["elite_frac", p.elite_frac])
     @notify_observer(p.logsys.observer, "parameters", ["w_new", p.w_new])
     @notify_observer(p.logsys.observer, "parameters", ["w_prior", p.w_prior])
-    @notify_observer(p.logsys.observer, "parameters", ["maxsteps", p.maxsteps])
+    @notify_observer(p.logsys.observer, "parameters", ["maxdepth", p.maxdepth])
     @notify_observer(p.logsys.observer, "parameters", ["default_expr", string(p.default_expr)])
 
     result 
 end
 
-function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
-    pcfg::PCFG)
-    #for i = 1:length(samples)
-    Threads.@threads for i = 1:length(samples)
+function ramped_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
+    dpcfg::DepthAwarePCFG, maxdepth::Int64)
+    
+    startmindepth = dpcfg.depths_by_rule[:start]
+    iter = cycle(startmindepth:maxdepth)
+    s = start(iter)
+    for i = 1:length(samples)
+        (d, s) = next(iter, s)
         wrc = wrc_vec[Threads.threadid()]
         set_channel!(wrc, i)
-        rand!(wrc, samples[i], pcfg)
+        rand!(wrc, samples[i], dpcfg, d)
+    end
+    samples
+end
+
+function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
+    dpcfg::DepthAwarePCFG, maxdepth::Int64)
+    for i = 1:length(samples)
+    #Threads.@threads for i = 1:length(samples)
+        wrc = wrc_vec[Threads.threadid()]
+        set_channel!(wrc, i)
+        rand!(wrc, samples[i], dpcfg, maxdepth)
     end
 end
 
@@ -231,8 +253,8 @@ function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult,
     problem::ExprProblem, default_expr)
     fitnesses = fill(realmax(Float64), p.num_samples)
     #evaluate fitness in parallel
-    #for i = 1:p.num_samples #use this to disable threads
-    Threads.@threads for i = 1:p.num_samples
+    for i = 1:p.num_samples #use this to disable threads
+    #Threads.@threads for i = 1:p.num_samples
         try
             #get_fitness must be thread-safe!
             fitnesses[i] = get_fitness(problem, samples[i].derivtree, p.userargs)
