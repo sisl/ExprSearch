@@ -47,7 +47,7 @@ notifydone() = sendifttt(;value1="$COMP done")
 A = JuliaSource[]
 append!(A, [JuliaSource(template_ce(i)) for i=I_START:I_END])
 #append!(A, [JuliaSource(template_ge(i)) for i=I_START:I_END])
-append!(A, [JuliaSource(template_gp(i)) for i=I_START:I_END])
+#append!(A, [JuliaSource(template_gp(i)) for i=I_START:I_END])
 #append!(A, [JuliaSource(template_mc(i)) for i=I_START:I_END])
 #append!(A, [JuliaSource(template_mcts(i)) for i=I_START:I_END])
 
