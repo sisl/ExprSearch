@@ -42,20 +42,19 @@ export GPESParams, GPESResult, gp_search, exprsearch, SearchParams, SearchResult
 export GPPopulation, GPIndividual
 export crossover, mutate, max_depth
 
-import Compat.view
 using Reexport
 using ExprSearch, MinDepths
 using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeIterators, TreeUtils
-import RLESTypes.SymbolTable
-import DerivationTrees.get_children
-import ExprSearch: get_derivtree, get_expr
 using GrammaticalEvolution
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
 using JLD
-
 using DerivTreeVis
 
+import Compat.view
+import RLESTypes.SymbolTable
+import DerivationTrees.get_children
+import ExprSearch: get_derivtree, get_expr
 import DerivationTrees: initialize!, max_depth
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
 import Base: copy!, sort!, isless, resize!, empty!, push!, pop!, length, start, next, done, 
@@ -314,8 +313,8 @@ Threaded evaluation of fitnesses
 function parallel_evaluate(p::GPESParams, pop::GPPopulation, result::GPESResult, 
     problem::ExprProblem, default_expr)
     #evaluate fitness in parallel
-    #for i = 1:p.num_samples #use this to disable threads
-    Threads.@threads for i = 1:length(pop)
+    for i = 1:length(pop) #use this to disable threads
+    #Threads.@threads for i = 1:length(pop)
         ind = pop[i]
         if isnull(ind.fitness)
             try
