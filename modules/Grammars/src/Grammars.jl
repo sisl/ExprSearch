@@ -39,12 +39,15 @@ module Grammars
 
 using GrammaticalEvolution
 using RLESUtils
+using ExprSearch, DerivationTrees
 
 import RLESTypes.SymbolTable
 
 include("operators.jl")
 
-function time_series_realonly1(real_feat_ids::Vector{Int64}, num_real_vals::Int64)
+function time_series_realonly1(real_feat_ids::Vector{Int64}, num_real_vals::Int64, 
+    real_vals::Vector, colnames::Vector{String}, colnames_full::Vector{String})
+
     @grammar grammar begin
         start = bin
 
@@ -95,7 +98,96 @@ function time_series_realonly1(real_feat_ids::Vector{Int64}, num_real_vals::Int6
     :! => not 
     ) 
 
-    (grammar, symtable)
+    function get_format_pretty{T<:AbstractString}(real_vals::Vector, colnames::Vector{T})
+        fmt = Format()
+
+        fmt["always"] = (cmd, args) -> "G($(args[1]))"
+        fmt["eventually"] = (cmd, args) -> "F($(args[1]))"
+
+        bin_infix(cmd, args, insym) = "($(args[1]) $insym $(args[2]))"
+        fmt["and"] = (cmd, args) -> bin_infix(cmd, args, "&")
+        fmt["or"] = (cmd, args) -> bin_infix(cmd, args, "|")
+        fmt["not"] = (cmd, args) -> "!($(args[1]))"
+        fmt["implies"] = (cmd, args) -> "$(args[1]) => $(args[2])"
+
+        bin_infix_eq(cmd, args) = bin_infix(cmd, args, ".==")
+        bin_infix_lt(cmd, args) = bin_infix(cmd, args, ".<")
+        bin_infix_lte(cmd, args) = bin_infix(cmd, args, ".<=")
+        bin_infix_gt(cmd, args) = bin_infix(cmd, args, ".>")
+        bin_infix_gte(cmd, args) = bin_infix(cmd, args, ".>=")
+        fmt["bin_eq"] = bin_infix_eq
+        fmt["real_eq.1"] = bin_infix_eq
+        fmt["lt.1"] = bin_infix_lt
+        fmt["lte.1"] = bin_infix_lte
+        fmt["gt.1"] = bin_infix_gt
+        fmt["gte.1"] = bin_infix_gte
+
+        function bin_infix_f(cmd, args, insym) 
+            "($(colnames[parse(Int,args[1])]) $insym $(round(get_val(real_vals,parse(Int,args[1]),parse(Int,args[2])),4))"
+        end
+        bin_infix_feq(cmd, args) = bin_infix_f(cmd, args, ".==")
+        bin_infix_flt(cmd, args) = bin_infix_f(cmd, args, ".<")
+        bin_infix_flte(cmd, args) = bin_infix_f(cmd, args, ".<=")
+        bin_infix_fgt(cmd, args) = bin_infix_f(cmd, args, ".>")
+        bin_infix_fgte(cmd, args) = bin_infix_f(cmd, args, ".>=")
+        fmt["real_eq.2"] = bin_infix_feq
+        fmt["lt.2"] = bin_infix_flt
+        fmt["lte.2"] = bin_infix_flte
+        fmt["gt.2"] = bin_infix_fgt
+        fmt["gte.2"] = bin_infix_fgte
+
+        feat(cmd, args) = "$(colnames[parse(Int, args[1])])"
+        fmt["real_vec"] = feat
+
+        fmt
+    end
+
+    function get_format_natural{T<:AbstractString}(real_vals::Vector, colnames::Vector{T})
+        fmt = Format()
+
+        fmt["always"] = (cmd, args) -> "for all time, $(args[1])"
+        fmt["eventually"] = (cmd, args) -> "at some point, $(args[1])"
+
+        bin_infix(cmd, args, insym) = "[$(args[1]) $insym $(args[2])]"
+        fmt["and"] = (cmd, args) -> bin_infix(cmd, args, "and")
+        fmt["or"] = (cmd, args) -> bin_infix(cmd, args, "or")
+        fmt["not"] = (cmd, args) -> "[it is not true that $(args[1])]"
+        fmt["implies"] = (cmd, args) -> "whenever $(args[1]), it is also true that $(args[2])"
+
+        bin_infix_eq(cmd, args) = bin_infix(cmd, args, "is equal to")
+        bin_infix_lt(cmd, args) = bin_infix(cmd, args, "is less than")
+        bin_infix_lte(cmd, args) = bin_infix(cmd, args, "is less than or equal to")
+        bin_infix_gt(cmd, args) = bin_infix(cmd, args, "is greater than")
+        bin_infix_gte(cmd, args) = bin_infix(cmd, args, "is greater than or equal to")
+        fmt["bin_eq"] = bin_infix_eq
+        fmt["real_eq.1"] = bin_infix_eq
+        fmt["lt.1"] = bin_infix_lt
+        fmt["lte.1"] = bin_infix_lte
+        fmt["gt.1"] = bin_infix_gt
+        fmt["gte.1"] = bin_infix_gte
+
+        bin_infix_f(cmd, args, insym) = "[$(colnames[parse(Int,args[1])]) $insym $(round(get_val(real_vals,parse(Int,args[1]),parse(Int,args[2])),4))]"
+        bin_infix_feq(cmd, args) = bin_infix_f(cmd, args, "is equal to")
+        bin_infix_flt(cmd, args) = bin_infix_f(cmd, args, "is less than")
+        bin_infix_flte(cmd, args) = bin_infix_f(cmd, args, "is less than or equal to")
+        bin_infix_fgt(cmd, args) = bin_infix_f(cmd, args, "is greater than")
+        bin_infix_fgte(cmd, args) = bin_infix_f(cmd, args, "is greater than or equal to")
+        fmt["real_eq.2"] = bin_infix_feq
+        fmt["lt.2"] = bin_infix_flt
+        fmt["lte.2"] = bin_infix_flte
+        fmt["gt.2"] = bin_infix_fgt
+        fmt["gte.2"] = bin_infix_fgte
+
+        feat(cmd, args) = "[$(colnames[parse(Int, args[1])])]"
+        fmt["real_vec"] = feat
+
+        fmt
+    end
+
+    fmt_pretty = get_format_pretty(real_vals, colnames)
+    fmt_natural = get_format_natural(real_vals, colnames_full)
+
+    (grammar, symtable, fmt_pretty, fmt_natural)
 end
 
 end #module
