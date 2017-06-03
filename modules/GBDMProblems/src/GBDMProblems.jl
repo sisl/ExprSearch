@@ -73,12 +73,15 @@ Apply expr to data to get vector of predicted labels (vector of bools since
 Boolean expression)
 """
 function apply_expr{T}(problem::GBDMProblem{T}, ids::Vector{Int64}, expr)
+    apply_expr(problem, view(getrecords(problem.data), ids), expr)
+end
+
+function apply_expr{T}(problem::GBDMProblem{T}, records::AbstractVector{DataFrame}, expr)
     symtable = problem.symtables[Threads.threadid()]
-    expr_labels = Vector{Bool}(length(ids))
-    records = getrecords(problem.data)
-    for i = 1:length(ids)
+    expr_labels = Vector{Bool}(length(records))
+    for i = 1:length(records)
         # manually inlined eval_expr
-        symtable[:D] = records[ids[i]] 
+        symtable[:D] = records[i] 
         expr_labels[i] = interpret(symtable, expr)
     end
     expr_labels #::Vector{Bool}
