@@ -32,4 +32,29 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-gt(x, y) = 5x^2 - 7x - 3y^2 - 8
+gt(::Type{Val{:cos}}, x, y) = 4cos(2x) + y 
+
+function create_grammar(::Type{Val{:cos}})
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | value | cos | sin | exp
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        cos = Expr(:call, :cos, ex)
+        sin = Expr(:call, :sin, ex)
+        exp = Expr(:call, :exp, ex)
+        value = :x | :y | digit
+        digit = 0:9
+    end
+    grammar
+end
+
+function symbol_table(::Type{Val{:cos}})
+    SymbolTable(
+        :+ => +,
+        :* => *,
+        :cos => cos,
+        :sin => sin,
+        :exp => exp
+        )
+end

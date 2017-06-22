@@ -62,10 +62,10 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
                      rand_frac::Float64=0.2,
                      default_code::Any=0.0,
 
-                     gt_file::AbstractString="gt_easy.jl",
+                     ver::Symbol=:easy,
 
                      vis::Bool=true,
-                     vis_type::AbstractString="TEX"
+                     vis_type::Symbol=:TEX
                      )
     srand(seed)
     mkpath(outdir)
@@ -77,7 +77,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
     send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
         "fitness5", "parameters", "result"])
 
-    problem = Symbolic(gt_file)
+    problem = Symbolic(ver)
   
     gp_params = GPESParams(pop_size, maxdepth, iterations, tournament_size, top_keep,
         crossover_frac, mutate_frac, rand_frac, default_code, logsys)
@@ -86,14 +86,14 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
 
     #manually push! extra info to log
     push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["gt_file", gt_file])
+    push!(logs, "parameters", ["version", ver])
 
     outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
+    save_log(LogFile(outfile), logs)
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            output=vis_type)
+            format=vis_type)
     end
     @show result.expr
     return result

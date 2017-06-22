@@ -55,11 +55,11 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
                      maxsteps::Int64=40,
                      n_samples::Int64=100000,
 
-                     gt_file::AbstractString="gt_easy.jl",
+                     ver::Symbol=:easy,
 
                      loginterval::Int64=2000,
                      vis::Bool=true,
-                     vis_type::AbstractString="TEX"
+                     vis_type::Symbol=:TEX
                      )
     srand(seed)
     mkpath(outdir)
@@ -73,20 +73,20 @@ function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
     send_to!(logs, logsys,  "current_best"; interval=loginterval)
     send_to!(logs, logsys,  "elapsed_cpu_s"; interval=loginterval)
 
-    problem = Symbolic(gt_file)
+    problem = Symbolic(ver)
     mc_params = MCESParams(maxsteps, n_samples, logsys)
     result = exprsearch(mc_params, problem)
 
     #manually push! extra info to log
     push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["gt_file", gt_file])
+    push!(logs, "parameters", ["version", ver])
 
     outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
+    save_log(LogFile(outfile), logs)
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            output=vis_type)
+            format=vis_type)
     end
     @show result.expr
     return result

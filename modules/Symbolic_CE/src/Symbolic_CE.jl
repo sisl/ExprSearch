@@ -61,10 +61,10 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
                      randchannel_width::Int64=60,
                      default_code::Any=0.0,
 
-                     gt_file::AbstractString="gt_easy.jl",
+                     ver::Symbol=:easy,
 
                      vis::Bool=true,
-                     vis_type::AbstractString="TEX"
+                     vis_type::Symbol=:TEX
                      )
     srand(seed)
     mkpath(outdir)
@@ -76,7 +76,7 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
     send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
         "parameters", "result"])
 
-    problem = Symbolic(gt_file)
+    problem = Symbolic(ver)
 
     ce_params = CEESParams(num_samples, iterations, elite_frac, w_new, 
         w_prior, maxdepth, default_code, randchannel_width, logsys)
@@ -85,14 +85,14 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
 
     #manually push! extra info to log
     push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["gt_file", gt_file])
+    push!(logs, "parameters", ["version", ver])
 
     outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
+    save_log(LogFile(outfile), logs)
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            output=vis_type)
+            format=vis_type)
     end
     @show result.expr
     return result
