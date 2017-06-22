@@ -53,8 +53,12 @@ function symbol_table(::Type{Val{:cos}})
     SymbolTable(
         :+ => +,
         :* => *,
-        :cos => cos,
-        :sin => sin,
+        :cos => cos1,
+        :sin => sin1,
         :exp => exp
         )
 end
+
+#need to protect against infinities
+sin1(x) = isinf(x) ? 0 : sin(x) 
+cos1(x) = isinf(x) ? 0 : cos(x)
