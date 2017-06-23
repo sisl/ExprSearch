@@ -156,7 +156,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         # dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
         weighted_sum!(dpcfg, 1.0-p.w_prior, dpcfg_prior, p.w_prior)
 
-        @assert result.fitness <= fitnesses[1] #result.fitness should be tracking global minimum
+        @assert result.fitness <= fitnesses[order[1]] #result.fitness should be tracking global minimum
 
         fitness = get_fitness(result) 
         code = string(get_expr(result))

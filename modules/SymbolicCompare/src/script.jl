@@ -4,7 +4,7 @@ const COMP = gethostname()
 const I_START = 1 
 const I_END = 50
 const NOTIFY = false
-const VER = "cos"
+const VER = "sin"
 
 #uses default config
 

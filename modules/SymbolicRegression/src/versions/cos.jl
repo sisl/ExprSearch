@@ -50,6 +50,10 @@ function create_grammar(::Type{Val{:cos}})
 end
 
 function symbol_table(::Type{Val{:cos}})
+    #need to protect against infinities
+    sin1(x) = isinf(x) ? 0 : sin(x) 
+    cos1(x) = isinf(x) ? 0 : cos(x)
+
     SymbolTable(
         :+ => +,
         :* => *,
@@ -59,6 +63,3 @@ function symbol_table(::Type{Val{:cos}})
         )
 end
 
-#need to protect against infinities
-sin1(x) = isinf(x) ? 0 : sin(x) 
-cos1(x) = isinf(x) ? 0 : cos(x)

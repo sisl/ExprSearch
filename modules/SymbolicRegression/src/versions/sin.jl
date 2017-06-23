@@ -32,65 +32,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-"""
-Symbolic regression expression search problem.
-"""
-module SymbolicRegression
+gt(::Type{Val{:sin}}, x, y) = sin(3x + y) + 2
 
-export Symbolic, create_grammar, get_grammar, get_fitness
-
-using ExprSearch, DerivationTrees
-import ExprSearch: ExprProblem, get_fitness, get_grammar
-using RLESUtils, Interpreter
-import RLESTypes.SymbolTable
-
-const DIR = dirname(@__FILE__)
-const XRANGE = 0.0:0.5:10.0
-const YRANGE = 0.0:0.5:10.0
-const W_LEN = 0.1
-
-include("versions/easy.jl")
-include("versions/cos.jl")
-include("versions/exp.jl")
-include("versions/sin.jl")
-
-type Symbolic{T<:AbstractFloat} <: ExprProblem
-    ver::Symbol
-    xrange::FloatRange{T}
-    yrange::FloatRange{T}
-    w_len::Float64
-    grammar::Grammar
-    gt::Function
-    symtable::SymbolTable
-end
-
-function Symbolic{T<:AbstractFloat}(ver::Symbol=:easy, xrange::FloatRange{T}=XRANGE, 
-    yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
-    grammar = create_grammar(Val{ver})
-    f_gt(x, y) = gt(Val{ver}, x, y)
-    symtable = symbol_table(Val{ver})
-    return Symbolic(ver, xrange, yrange, w_len, grammar, f_gt, symtable)
-end
-
-function eval_expr(problem::Symbolic, expr, x, y)
-    symtable = problem.symtable
-    symtable[:x] = x
-    symtable[:y] = y
-    return interpret(symtable, expr)
-end
-
-ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
-
-function ExprSearch.get_fitness(problem::Symbolic, derivtree::DerivationTree, userargs::SymbolTable)
-    expr = get_expr(derivtree)
-    #mean-square error over a range
-    sum_se = 0.0
-    for x in problem.xrange, y in problem.yrange
-        sum_se += abs2(eval_expr(problem, expr, x, y) - problem.gt(x, y))
+function create_grammar(::Type{Val{:sin}})
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | value | cos | sin | exp
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        cos = Expr(:call, :cos, ex)
+        sin = Expr(:call, :sin, ex)
+        exp = Expr(:call, :exp, ex)
+        value = :x | :y | digit
+        digit = 0:9
     end
-    n = length(problem.xrange) * length(problem.yrange)
-    fitness = sum_se / n + problem.w_len * length(string(expr))
-    fitness
+    grammar
 end
 
-end #module
+function symbol_table(::Type{Val{:sin}})
+    #need to protect against infinities
+    sin1(x) = isinf(x) ? 0 : sin(x) 
+    cos1(x) = isinf(x) ? 0 : cos(x)
+
+    SymbolTable(
+        :+ => +,
+        :* => *,
+        :cos => cos1,
+        :sin => sin1,
+        :exp => exp
+        )
+end
+
