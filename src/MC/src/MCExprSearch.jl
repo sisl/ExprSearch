@@ -43,15 +43,13 @@ export MCESParams, MCESResult, mc_search, exprsearch, SearchParams, SearchResult
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
-import RLESTypes.SymbolTable
 @reexport using LinearDerivTrees  #for pretty strings
 using GrammaticalEvolution
 using Iterators
 using JLD
+using RLESTypes.SymbolTable
 
-import LinearDerivTrees: initialize!
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
-    get_derivtree, get_expr
+import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
 import Base: isless, copy!
 
 const DEFAULT_EXPR = :()
@@ -115,6 +113,7 @@ function mc_search(p::MCESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting MC search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
     
+    initialize!(problem)
     grammar = get_grammar(problem)
     tree_params = LDTParams(grammar, p.maxsteps)
 

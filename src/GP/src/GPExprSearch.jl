@@ -50,13 +50,11 @@ using GrammaticalEvolution
 using CPUTime
 using JLD
 using DerivTreeVis
+using RLESTypes.SymbolTable
 
 import Compat.view
-import RLESTypes.SymbolTable
-import DerivationTrees.get_children
-import ExprSearch: get_derivtree, get_expr
-import DerivationTrees: initialize!, max_depth
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import DerivationTrees: get_children, max_depth
+import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
 import Base: copy!, sort!, isless, resize!, empty!, push!, pop!, length, start, next, done, 
     rand, getindex
 
@@ -119,6 +117,7 @@ function gp_search(p::GPESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting GP search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
+    initialize!(problem)
     grammar = get_grammar(problem)
     mdr = min_depth_rule(grammar) 
     mda = min_depth_actions(mdr, grammar)

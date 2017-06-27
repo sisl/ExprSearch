@@ -41,23 +41,20 @@ module CE
 export CEESParams, CEESResult, ce_search, exprsearch, SearchParams, SearchResult, get_derivtree
 export Samples
 
-import Compat.view
 using Reexport
 using ExprSearch
 using DepthAwarePCFGs
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandChannels
-import RLESTypes.SymbolTable
-import DerivationTrees.get_children
-import ExprSearch: get_derivtree, get_expr
 using LinearDerivTrees
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
 using JLD
-
 using DerivTreeVis
+using RLESTypes.SymbolTable
 
-import DerivationTrees: initialize!, max_depth
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import Compat.view
+import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
+import DerivationTrees.get_children
 
 typealias MinDepthByRule Dict{Symbol,Int64}
 typealias MinDepthByAction Dict{Symbol,Vector{Int64}}
@@ -112,11 +109,14 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting CE search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
+    initialize!(problem)
     cfg = get_grammar(problem)
     result = CEESResult(cfg) 
     dpcfg = DepthAwarePCFG(cfg) #initialize to uniform probabilities
     dpcfg_new = copy(dpcfg) #for blending of new and old
     dpcfg_prior = copy(dpcfg) #uniform prior to ensure full support over domain
+
+    @notify_observer(p.logsys.observer, "dpcfg", [0, dpcfg])
 
     tree_params = LDTParams(cfg, typemax(Int64))
     samples = [LinearDerivTree(tree_params; nodepool=MemPool(DerivTreeNode, 20, 500)) 
@@ -155,6 +155,8 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         # Include uniform prior
         # dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
         weighted_sum!(dpcfg, 1.0-p.w_prior, dpcfg_prior, p.w_prior)
+
+        @notify_observer(p.logsys.observer, "dpcfg", [iter, dpcfg])
 
         @assert result.fitness <= fitnesses[order[1]] #result.fitness should be tracking global minimum
 

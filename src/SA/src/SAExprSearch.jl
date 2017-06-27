@@ -51,7 +51,8 @@ using GrammaticalEvolution
 using Iterators
 
 import DerivationTrees.initialize!
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, initialize!, 
+    get_grammar, get_fitness
 import Base: isless, copy!
 
 type SAESParams <: SearchParams
@@ -142,6 +143,7 @@ function sa_search(p::SAESParams, problem::ExprProblem, userargs...)
   @notify_observer(p.observer, "verbose1", ["Starting SA search"])
   @notify_observer(p.observer, "computeinfo", ["starttime", string(now())])
 
+  initialize!(problem)
   grammar = get_grammar(problem)
   tree_params = DerivTreeParams(grammar, p.maxsteps)
   s_buffer = SwapBuffer(SAState(DerivationTree(tree_params)),

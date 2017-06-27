@@ -38,6 +38,7 @@ Returns the sample with the best result.
 """
 module PMC
 
+warn("PMC is deprecated")
 export PMCESParams, MCESParams, get_derivtree
 
 using ExprSearch
