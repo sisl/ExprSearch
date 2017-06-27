@@ -63,10 +63,10 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
                      mutation_rate::Float64=0.6,
                      defaultcode::Any=0.0,
 
-                     gt_file::AbstractString="gt_easy.jl",
+                     ver::Symbol=:easy,
 
                      vis::Bool=true,
-                     vis_type::AbstractString="TEX")
+                     vis_type::Symbol=:TEX)
     srand(seed)
     mkpath(outdir)
 
@@ -77,7 +77,7 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
     send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
         "fitness5", "parameters", "result"])
 
-    problem = Symbolic(gt_file)
+    problem = Symbolic(ver)
   
     ge_params = GEESParams(genome_size, pop_size, maxwraps,
                          top_keep, top_seed, rand_frac, prob_mutation, mutation_rate, defaultcode,
@@ -87,14 +87,14 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
 
     #manually push! extra info to log
     push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["gt_file", gt_file])
+    push!(logs, "parameters", ["version", ver])
 
     outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(outfile, logs)
+    save_log(LogFile(outfile), logs)
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            output=vis_type)
+            format=vis_type)
     end
     @show result.expr
     return result

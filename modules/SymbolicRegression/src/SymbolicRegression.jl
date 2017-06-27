@@ -45,49 +45,38 @@ using RLESUtils, Interpreter
 import RLESTypes.SymbolTable
 
 const DIR = dirname(@__FILE__)
-const GT_FILE = "gt_easy.jl"
 const XRANGE = 0.0:0.5:10.0
 const YRANGE = 0.0:0.5:10.0
 const W_LEN = 0.1
 
-const SYMTABLE = SymbolTable(
-    :+ => +,
-    :* => *
-    )
+include("versions/easy.jl")
+include("versions/cos.jl")
+include("versions/exp.jl")
+include("versions/sin.jl")
 
 type Symbolic{T<:AbstractFloat} <: ExprProblem
+    ver::Symbol
     xrange::FloatRange{T}
     yrange::FloatRange{T}
     w_len::Float64
     grammar::Grammar
+    gt::Function
+    symtable::SymbolTable
 end
 
-function Symbolic{T<:AbstractFloat}(gt_file::AbstractString=GT_FILE, xrange::FloatRange{T}=XRANGE, 
+function Symbolic{T<:AbstractFloat}(ver::Symbol=:easy, xrange::FloatRange{T}=XRANGE, 
     yrange::FloatRange{T}=YRANGE, w_len::Float64=W_LEN)
-    if !endswith(gt_file, ".jl")
-        gt_file *= ".jl"
-    end
-    @eval include(joinpath($DIR, $gt_file)) #define gt in module scope
-    grammar = create_grammar()
-    return Symbolic(xrange, yrange, w_len, grammar)
-end
-
-function create_grammar()
-    @grammar grammar begin
-        start = ex
-        ex = sum | product | (ex) | value
-        sum = Expr(:call, :+, ex, ex)
-        product = Expr(:call, :*, ex, ex)
-        value = :x | :y | digit
-        digit = 0:9
-    end
-    grammar
+    grammar = create_grammar(Val{ver})
+    f_gt(x, y) = gt(Val{ver}, x, y)
+    symtable = symbol_table(Val{ver})
+    return Symbolic(ver, xrange, yrange, w_len, grammar, f_gt, symtable)
 end
 
 function eval_expr(problem::Symbolic, expr, x, y)
-    SYMTABLE[:x] = x
-    SYMTABLE[:y] = y
-    return interpret(SYMTABLE, expr)
+    symtable = problem.symtable
+    symtable[:x] = x
+    symtable[:y] = y
+    return interpret(symtable, expr)
 end
 
 ExprSearch.get_grammar(problem::Symbolic) = problem.grammar
@@ -97,7 +86,7 @@ function ExprSearch.get_fitness(problem::Symbolic, derivtree::DerivationTree, us
     #mean-square error over a range
     sum_se = 0.0
     for x in problem.xrange, y in problem.yrange
-        sum_se += abs2(eval_expr(problem, expr, x, y) - gt(x, y))
+        sum_se += abs2(eval_expr(problem, expr, x, y) - problem.gt(x, y))
     end
     n = length(problem.xrange) * length(problem.yrange)
     fitness = sum_se / n + problem.w_len * length(string(expr))

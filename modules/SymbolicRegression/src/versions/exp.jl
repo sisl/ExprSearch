@@ -32,64 +32,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module Symbolic_MC
+gt(::Type{Val{:exp}}, x, y) = 3exp(y) + 2x 
 
-export symbolic_mc
-
-using ExprSearch, SymbolicRegression, DerivTreeVis
-using ExprSearch.MC
-using RLESUtils, Observers, LogSystems, Loggers
-using Base.Test
-
-const DIR = dirname(@__FILE__)
-const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
-
-"""
-Example usage:
-symbolic_mc(; seed=1)
-"""
-function symbolic_mc(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_MC"),
-                     seed=1,
-                     logfileroot::AbstractString="symbolic_mc_log",
-
-                     maxsteps::Int64=40,
-                     n_samples::Int64=100000,
-
-                     ver::Symbol=:easy,
-
-                     loginterval::Int64=2000,
-                     vis::Bool=true,
-                     vis_type::Symbol=:TEX
-                     )
-    srand(seed)
-    mkpath(outdir)
-
-    logsys = MC.logsystem()
-    empty_listeners!(logsys)
-    send_to!(STDOUT, logsys, ["verbose1", "result"])
-    send_to!(STDOUT, logsys, "current_best_print"; interval=loginterval)
-    logs = TaggedDFLogger()
-    send_to!(logs, logsys, ["computeinfo", "parameters", "result"])
-    send_to!(logs, logsys,  "current_best"; interval=loginterval)
-    send_to!(logs, logsys,  "elapsed_cpu_s"; interval=loginterval)
-
-    problem = Symbolic(ver)
-    mc_params = MCESParams(maxsteps, n_samples, logsys)
-    result = exprsearch(mc_params, problem)
-
-    #manually push! extra info to log
-    push!(logs, "parameters", ["seed", seed])
-    push!(logs, "parameters", ["version", ver])
-
-    outfile = joinpath(outdir, "$(logfileroot).txt")
-    save_log(LogFile(outfile), logs)
-
-    if vis
-        derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");
-            format=vis_type)
+function create_grammar(::Type{Val{:exp}})
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | value | cos | sin | exp
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        cos = Expr(:call, :cos, ex)
+        sin = Expr(:call, :sin, ex)
+        exp = Expr(:call, :exp, ex)
+        value = :x | :y | digit
+        digit = 0:9
     end
-    @show result.expr
-    return result
+    grammar
 end
 
-end #module
+function symbol_table(::Type{Val{:exp}})
+    #need to protect against infinities
+    sin1(x) = isinf(x) ? 0 : sin(x) 
+    cos1(x) = isinf(x) ? 0 : cos(x)
+
+    SymbolTable(
+        :+ => +,
+        :* => *,
+        :cos => cos1,
+        :sin => sin1,
+        :exp => exp
+        )
+end
+

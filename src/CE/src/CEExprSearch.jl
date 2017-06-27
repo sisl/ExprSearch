@@ -156,7 +156,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         # dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
         weighted_sum!(dpcfg, 1.0-p.w_prior, dpcfg_prior, p.w_prior)
 
-        @assert result.fitness <= fitnesses[1] #result.fitness should be tracking global minimum
+        @assert result.fitness <= fitnesses[order[1]] #result.fitness should be tracking global minimum
 
         fitness = get_fitness(result) 
         code = string(get_expr(result))
@@ -213,8 +213,8 @@ end
 
 function parallel_rand!{T}(wrc_vec::Vector{WrappedRandChannel{T}}, samples::Vector{LinearDerivTree},
     dpcfg::DepthAwarePCFG, maxdepth::Int64)
-    #for i = 1:length(samples)
-    Threads.@threads for i = 1:length(samples)
+    for i = 1:length(samples)
+    #Threads.@threads for i = 1:length(samples)
         wrc = wrc_vec[Threads.threadid()]
         set_channel!(wrc, i)
         rand!(wrc, samples[i], dpcfg, maxdepth)
@@ -253,8 +253,8 @@ function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult,
     problem::ExprProblem, default_expr)
     fitnesses = fill(realmax(Float64), p.num_samples)
     #evaluate fitness in parallel
-    #for i = 1:p.num_samples #use this to disable threads
-    Threads.@threads for i = 1:p.num_samples
+    for i = 1:p.num_samples #use this to disable threads
+    #Threads.@threads for i = 1:p.num_samples
         try
             #get_fitness must be thread-safe!
             fitnesses[i] = get_fitness(problem, samples[i].derivtree, p.userargs)

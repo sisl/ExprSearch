@@ -32,4 +32,24 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-gt(x, y) = 5x^2 - 7x - 3y^2 - 8
+gt(::Type{Val{:easy}}, x, y) = 2x + 3y + 5
+
+function create_grammar(::Type{Val{:easy}})
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | (ex) | value
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        value = :x | :y | digit
+        digit = 0:9
+    end
+    grammar
+end
+
+function symbol_table(::Type{Val{:easy}})
+    SymbolTable(
+        :+ => +,
+        :* => *
+        )
+end
+

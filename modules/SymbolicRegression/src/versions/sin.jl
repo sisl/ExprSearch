@@ -32,4 +32,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-gt(x, y) = 2x + 3y + 5
+gt(::Type{Val{:sin}}, x, y) = sin(3x + y) + 2
+
+function create_grammar(::Type{Val{:sin}})
+    @grammar grammar begin
+        start = ex
+        ex = sum | product | value | cos | sin | exp
+        sum = Expr(:call, :+, ex, ex)
+        product = Expr(:call, :*, ex, ex)
+        cos = Expr(:call, :cos, ex)
+        sin = Expr(:call, :sin, ex)
+        exp = Expr(:call, :exp, ex)
+        value = :x | :y | digit
+        digit = 0:9
+    end
+    grammar
+end
+
+function symbol_table(::Type{Val{:sin}})
+    #need to protect against infinities
+    sin1(x) = isinf(x) ? 0 : sin(x) 
+    cos1(x) = isinf(x) ? 0 : cos(x)
+
+    SymbolTable(
+        :+ => +,
+        :* => *,
+        :cos => cos1,
+        :sin => sin1,
+        :exp => exp
+        )
+end
+

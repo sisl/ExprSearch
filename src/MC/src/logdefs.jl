@@ -41,19 +41,19 @@ function logsystem()
     register_log!(logsys, "computeinfo", ["parameter", "value"], [ASCIIString, Any])
     register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
         [Float64, ASCIIString, Int64, Int64])
-    register_log!(logsys, "current_best",  ["iter", "fitness", "expr"], 
+    register_log!(logsys, "current_best",  ["nevals", "fitness", "expr"], 
         [Int64, Float64, ASCIIString])
-    register_log!(logsys, "elapsed_cpu_s", ["iter", "elapsed_cpu_s"], 
+    register_log!(logsys, "elapsed_cpu_s", ["nevals", "elapsed_cpu_s"], 
         [Int64, Float64]) 
 
     register_log!(logsys, "verbose1", ["msg"], [ASCIIString])
 
     register_log!(logsys, "current_best_print", ["msg"], [ASCIIString], "current_best", 
         x->begin
-                iter, fitness, code = x
+                nevals, fitness, code = x
                 code = string(code)
                 code_short = take(code, 50) |> join
-                return ["i=$iter, fitness=$(signif(fitness, 4))," *
+                return ["i=$nevals, fitness=$(signif(fitness, 4))," *
                          "code=$(code_short)"]
             end)
 

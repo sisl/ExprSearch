@@ -40,12 +40,11 @@ then combine_and_plot()
 """
 module SymbolicCompare
 
-export combine_sweep_logs, combine_mc_logs, combine_mcts_logs, 
+export combine_mc_logs, combine_mcts_logs, 
     combine_ge_logs, combine_gp_logs, combine_ce_logs, combine_logs
 export master_log, master_plot
-export combine_and_plot
+export combine_and_plot, set_studyname
 
-import Compat: ASCIIString, UTF8String
 using ExprSearch: GP, MC, MCTS, GE, CE
 using Symbolic_GP, Symbolic_GE, Symbolic_MC, Symbolic_MCTS, Symbolic_CE 
 using RLESUtils, Loggers, MathUtils, LatexUtils, Sweeper, LogJoiner
@@ -53,7 +52,7 @@ using RLESUtils, Loggers, MathUtils, LatexUtils, Sweeper, LogJoiner
 using DataFrames
 using PGFPlots, TikzPictures
 
-const STUDYNAME = "SymbolicCompare"
+STUDYNAME = "SymbolicCompare"
 const MC_NAME = "Symbolic_MC"
 const MCTS_NAME = "Symbolic_MCTS"
 const GE_NAME = "Symbolic_GE"
@@ -63,52 +62,49 @@ const CE_NAME = "Symbolic_CE"
 const CONFIGDIR = joinpath(dirname(@__FILE__), "..", "config")
 const RESULTDIR = joinpath(dirname(@__FILE__), "..", "..", "..", "results")
 
-const MASTERLOG_FILE = joinpath(RESULTDIR, STUDYNAME, "masterlog.csv.gz")
-const PLOTLOG_FILE =  joinpath(RESULTDIR, STUDYNAME, "plotlog.csv.gz")
-const PLOTFILEROOT = joinpath(RESULTDIR, STUDYNAME, "plots")
+resultpath(dir::String="") = joinpath(RESULTDIR, dir)
+studypath(dir::String="") = joinpath(RESULTDIR, STUDYNAME, dir)
+_masterlog_file() = joinpath(RESULTDIR, STUDYNAME, "masterlog.csv.gz")
+_plotlog_file() =  joinpath(RESULTDIR, STUDYNAME, "plotlog.csv.gz")
+_plotfileroot() = joinpath(RESULTDIR, STUDYNAME, "plots")
 
-resultpath(dir::ASCIIString="") = joinpath(RESULTDIR, dir)
-studypath(dir::ASCIIString="") = joinpath(RESULTDIR, STUDYNAME, dir)
+set_studyname(studyname::AbstractString) = global STUDYNAME = studyname
 
 function combine_mc_logs()
     dir = studypath(MC_NAME)
-    logjoin(dir, "symbolic_mc_log.txt", ["current_best", "elapsed_cpu_s"], 
+    logjoin(dir, "symbolic_mc_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"))
 end
 function combine_mcts_logs()
     dir = studypath(MCTS_NAME)
-    logjoin(dir, "symbolic_mcts_log.txt", ["current_best", "elapsed_cpu_s"], 
+    logjoin(dir, "symbolic_mcts_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"))
 end
 function combine_ge_logs()
     dir = studypath(GE_NAME)
-    logjoin(dir, "symbolic_ge_log.txt", ["current_best", "elapsed_cpu_s"], 
+    logjoin(dir, "symbolic_ge_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"))
 end
 function combine_gp_logs()
     dir = studypath(GP_NAME)
-    logjoin(dir, "symbolic_gp_log.txt", ["current_best", "elapsed_cpu_s"], 
+    logjoin(dir, "symbolic_gp_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"))
 end
 function combine_ce_logs()
     dir = studypath(CE_NAME)
-    logjoin(dir, "symbolic_ce_log.txt", ["current_best", "elapsed_cpu_s"], 
+    logjoin(dir, "symbolic_ce_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"))
-end
-function combine_sweep_logs()
-    dir = studypath()
-    logjoin(dir, "sweeper_log.txt", ["result"], joinpath(dir, "sweepjoined"))
 end
 
 #TODO: clean this up...
 function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
-    masterlog = DataFrame([Int64, Float64, Float64, UTF8String, ASCIIString, UTF8String], 
+    masterlog = DataFrame([Int64, Float64, Float64, String, String, String], 
         [:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name], 0)
 
     #MC
     if b_mc
         dir = studypath(MC_NAME)
-        logs = load_log(TaggedDFLogger, joinpath(dir, "subdirjoined.txt"))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:iter, :name])
         D[:algorithm] = fill("MC", nrow(D))
         rename!(D, :iter, :nevals)
@@ -118,7 +114,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #MCTS
     if b_mcts
         dir = studypath(MCTS_NAME)
-        logs = load_log(TaggedDFLogger, joinpath(dir, "subdirjoined.txt"))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:iter, :name])
         D[:algorithm] = fill("MCTS", nrow(D))
         rename!(D, :iter, :nevals)
@@ -128,7 +124,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #GE
     if b_ge
         dir = studypath(GE_NAME)
-        logs = load_log(TaggedDFLogger, joinpath(dir, "subdirjoined.txt"))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("GE", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
@@ -137,7 +133,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #GP
     if b_gp
         dir = studypath(GP_NAME)
-        logs = load_log(TaggedDFLogger, joinpath(dir, "subdirjoined.txt"))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("GP", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
@@ -146,24 +142,24 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #CE
     if b_ce
         dir = studypath(CE_NAME)
-        logs = load_log(TaggedDFLogger, joinpath(dir, "subdirjoined.txt"))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("CE", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
     end
 
-    writetable(MASTERLOG_FILE, masterlog)
+    writetable(_masterlog_file(), masterlog)
     masterlog
 end
 
-master_plot(; kwargs...) = master_plot(readtable(MASTERLOG_FILE); kwargs...)
+master_plot(; kwargs...) = master_plot(readtable(_masterlog_file()); kwargs...)
 
 """
 Subsamples the collected data at 'subsample' rate to plot at a lower rate than collected
 Set subsample to 1 to disable.
 """
 function master_plot(masterlog::DataFrame; 
-    plotlog_file::AbstractString=PLOTLOG_FILE, plotfileroot::AbstractString=PLOTFILEROOT,
+    plotlog_file::AbstractString=_plotlog_file(), plotfileroot::AbstractString=_plotfileroot(),
     subsample::Int64=2000)
     D = masterlog 
 
