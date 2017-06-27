@@ -41,22 +41,23 @@ Usage: using ExprSearch.MC; result = exprsearch(p, problem)
 """
 module ExprSearch
 
-export ExprProblem, get_grammar, get_fitness
+export ExprProblem, initialize!, get_grammar, get_fitness
 export SearchParams, SearchResult, exprsearch
 export get_expr, get_derivtree
 
 const MODULEDIR = joinpath(dirname(@__FILE__), "..", "modules")
 
 using Reexport
-@reexport using GrammaticalEvolution
 using RLESUtils, ModLoader
-import RLESTypes.SymbolTable
+@reexport using GrammaticalEvolution
 
 load_to_path(MODULEDIR)
 const PKGS = readdir(MODULEDIR)
 
 using DerivationTrees
-import DerivationTrees.get_expr
+
+import RLESTypes.SymbolTable
+import DerivationTrees: initialize!, get_expr
 
 abstract ExprProblem 
 abstract SearchParams
@@ -64,6 +65,7 @@ abstract SearchResult
 
 exprsearch(p::SearchParams, problem::ExprProblem) = error("Please use a submodule.")
 
+initialize!(problem::ExprProblem) = problem #user should overload this, default to nothing
 get_grammar(problem::ExprProblem) = error("ExprSearch::get_grammar() not defined")
 get_fitness(problem::ExprProblem, derivtree::DerivationTree, 
     userargs::SymbolTable) = error("ExprSearch::get_fitness() not defined")
@@ -94,19 +96,13 @@ function testall()
 end
 
 include("GP/src/GPExprSearch.jl") #Genetic Programming (standard tree-based)
-
 include("GE/src/GEExprSearch.jl") #Grammatical Evolution
-
 include("MC/src/MCExprSearch.jl") #Monte Carlo (random)
-
-include("PMC/src/PMCExprSearch.jl") #Parallel Monte Carlo
-
 include("MCTS/src/MCTSExprSearch.jl") #Monte Carlo Tree Search without committing steps
-
 include("CE/src/CEExprSearch.jl") #Cross-entropy method optimization using PCFG
 
 #include("Ref/src/RefExprSearch.jl") #Ref
-
+#include("PMC/src/PMCExprSearch.jl") #Parallel Monte Carlo
 #include("SA/src/SAExprSearch.jl") #SA
 
 end #module

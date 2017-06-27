@@ -42,31 +42,30 @@ export GEESParams, GEESResult, ge_search, exprsearch, SearchParams, SearchResult
 using Reexport
 using ExprSearch
 using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
-import RLESTypes.SymbolTable
 using GrammaticalEvolution
 @reexport using LinearDerivTrees  #for pretty strings
 using CPUTime
 using JLD
+using RLESTypes.SymbolTable
 
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
-    get_derivtree, get_expr
+import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
 
 include("logdefs.jl")
 
 type GEESParams <: SearchParams
-  #GrammaticalEvolution params
-  genome_size::Int64
-  pop_size::Int64
-  maxwraps::Int64
-  top_keep::Float64
-  top_seed::Float64
-  rand_frac::Float64
-  prob_mutation::Float64
-  mutation_rate::Float64
-  default_code::Any
-  max_iters::Int64
-  logsys::LogSystem
-  userargs::SymbolTable
+    #GrammaticalEvolution params
+    genome_size::Int64
+    pop_size::Int64
+    maxwraps::Int64
+    top_keep::Float64
+    top_seed::Float64
+    rand_frac::Float64
+    prob_mutation::Float64
+    mutation_rate::Float64
+    default_code::Any
+    max_iters::Int64
+    logsys::LogSystem
+    userargs::SymbolTable
 end
 GEESParams(genome_size::Int64, pop_size::Int64, maxwraps::Int64, top_keep::Float64,
     top_seed::Float64, rand_frac::Float64, prob_mutation::Float64, mutation_rate::Float64,
@@ -94,6 +93,7 @@ function ge_search(p::GEESParams, problem::ExprProblem)
     @notify_observer(p.logsys.observer, "verbose1", ["Starting GE search"])
     @notify_observer(p.logsys.observer, "computeinfo", ["starttime", string(now())])
 
+    initialize!(problem)
     grammar = get_grammar(problem)
 
     tree_params = LDTParams(grammar, p.genome_size)

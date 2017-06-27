@@ -61,6 +61,8 @@ const CE_NAME = "Symbolic_CE"
 
 const CONFIGDIR = joinpath(dirname(@__FILE__), "..", "config")
 const RESULTDIR = joinpath(dirname(@__FILE__), "..", "..", "..", "results")
+const VERBOSE = false
+const D_TYPES = Dict{String,Vector{Type}}("current_best"=>[Int64, Float64, String])
 
 resultpath(dir::String="") = joinpath(RESULTDIR, dir)
 studypath(dir::String="") = joinpath(RESULTDIR, STUDYNAME, dir)
@@ -73,27 +75,27 @@ set_studyname(studyname::AbstractString) = global STUDYNAME = studyname
 function combine_mc_logs()
     dir = studypath(MC_NAME)
     logjoin(dir, "symbolic_mc_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
-        joinpath(dir, "subdirjoined"))
+        joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_mcts_logs()
     dir = studypath(MCTS_NAME)
     logjoin(dir, "symbolic_mcts_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
-        joinpath(dir, "subdirjoined"))
+        joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_ge_logs()
     dir = studypath(GE_NAME)
     logjoin(dir, "symbolic_ge_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
-        joinpath(dir, "subdirjoined"))
+        joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_gp_logs()
     dir = studypath(GP_NAME)
     logjoin(dir, "symbolic_gp_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
-        joinpath(dir, "subdirjoined"))
+        joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_ce_logs()
     dir = studypath(CE_NAME)
     logjoin(dir, "symbolic_ce_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
-        joinpath(dir, "subdirjoined"))
+        joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 
 #TODO: clean this up...
@@ -105,9 +107,8 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     if b_mc
         dir = studypath(MC_NAME)
         logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
-        D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:iter, :name])
+        D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("MC", nrow(D))
-        rename!(D, :iter, :nevals)
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
     end
 

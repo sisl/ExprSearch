@@ -45,8 +45,8 @@ using RLESUtils, Interpreter
 import RLESTypes.SymbolTable
 
 const DIR = dirname(@__FILE__)
-const XRANGE = 0.0:0.5:10.0
-const YRANGE = 0.0:0.5:10.0
+const XRANGE = 0.0:0.25:10.0
+const YRANGE = 0.0:0.25:10.0
 const W_LEN = 0.1
 
 include("versions/easy.jl")

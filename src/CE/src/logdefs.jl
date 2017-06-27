@@ -32,32 +32,36 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-import Compat.ASCIIString
-
 function logsystem()
     logsys = LogSystem()
 
     register_log!(logsys, "fitness", ["iter", "fitness"], [Int64, Float64])
-    register_log!(logsys, "code", ["iter", "code"], [Int64, ASCIIString])
-    register_log!(logsys, "computeinfo", ["parameter", "value"], [ASCIIString, Any])
-    register_log!(logsys, "parameters", ["parameter", "value"], [ASCIIString, Any])
+    register_log!(logsys, "code", ["iter", "code"], [Int64, String])
+    register_log!(logsys, "computeinfo", ["parameter", "value"], [String, Any])
+    register_log!(logsys, "parameters", ["parameter", "value"], [String, Any])
     register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
-        [Float64, ASCIIString, Int64, Int64])
+        [Float64, String, Int64, Int64])
     register_log!(logsys, "elapsed_cpu_s", ["nevals", "elapsed_cpu_s"], 
         [Int64, Float64]) 
     register_log!(logsys, "current_best",  ["nevals", "fitness", "expr"], 
-        [Int64, Float64, ASCIIString])
+        [Int64, Float64, String])
     register_log!(logsys, "fitness5", ["iter", "fitness1", "fitness2", "fitness3",
         "fitness4", "fitness5"], [Int64, Float64, Float64, Float64, Float64, Float64])
 
-    register_log!(logsys, "verbose1", ["msg"], [ASCIIString])
-    register_log!(logsys, "current_best_print", ["msg"], [ASCIIString], "current_best", 
+    register_log!(logsys, "verbose1", ["msg"], [String])
+    register_log!(logsys, "current_best_print", ["msg"], [String], "current_best", 
         x->begin
             nevals, fitness, code = x
             code = string(code)
             code_short = take(code, 50) |> join
             return ["nevals: $nevals, best fitness=$(signif(fitness, 4))," *
                          "code=$(code_short)"]
+        end)
+
+    register_log!(logsys, "pcfg_probs", ["msg"], [String], "pcfg", 
+        x->begin
+            iter, pcfg = x
+            return ["Saving pcfg..."]
         end)
 
     logsys

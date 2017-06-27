@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-gt(::Type{Val{:sin}}, x, y) = sin(3x + y) + 2
+gt(::Type{Val{:sin}}, x, y) = 2sin(x + y) + 1 
 
 function create_grammar(::Type{Val{:sin}})
     @grammar grammar begin

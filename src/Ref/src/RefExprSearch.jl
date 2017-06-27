@@ -47,7 +47,7 @@ using GrammaticalEvolution
 using Iterators
 
 import LinearDerivTrees: get_derivtree
-import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness
+import ..ExprSearch: exprsearch, get_fitness
 import Base: isless, copy!
 
 type RefESParams <: SearchParams
