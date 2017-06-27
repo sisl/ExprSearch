@@ -46,7 +46,7 @@ using RLESUtils, TreeToJSON, TikzQTrees
 using Iterators
 
 function derivtreevis(tree::DerivationTree, outfileroot::AbstractString;
-    output::AbstractString="TEXPDF")
+    format::Symbol=:TEXPDF)
 
   get_name(tree::DerivationTree) = get_name(tree.root)
   function get_name(node::DerivTreeNode)
@@ -66,7 +66,7 @@ function derivtreevis(tree::DerivationTree, outfileroot::AbstractString;
   viscalls = VisCalls(get_name, get_children, get_depth)
   write_json(tree, viscalls, "$(outfileroot).json")
   plottree("$(outfileroot).json", outfileroot="$(outfileroot)";
-    output=output)
+    format=format)
 end
 
 end #module
