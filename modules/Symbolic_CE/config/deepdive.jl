@@ -35,9 +35,9 @@
 #cross-entropy method optimization
 [
     (:num_samples, 1000),
-    (:iterations, 5),
+    (:iterations, 10),
     (:elite_frac, 0.5),
-    (:w_new, 1.0),
+    (:w_new, 0.4),
     (:w_prior, 0.1),
     (:maxdepth, 10),
     (:default_code, 0.0),

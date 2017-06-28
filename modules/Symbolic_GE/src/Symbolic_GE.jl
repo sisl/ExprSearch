@@ -89,7 +89,7 @@ function symbolic_ge(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GE"),
     push!(logs, "parameters", ["seed", seed])
     push!(logs, "parameters", ["version", ver])
 
-    outfile = joinpath(outdir, "$(logfileroot).txt")
+    outfile = joinpath(outdir, logfileroot)
     save_log(LogFile(outfile), logs)
 
     if vis

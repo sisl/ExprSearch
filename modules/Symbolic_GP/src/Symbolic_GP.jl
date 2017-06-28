@@ -88,7 +88,7 @@ function symbolic_gp(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_GP"),
     push!(logs, "parameters", ["seed", seed])
     push!(logs, "parameters", ["version", ver])
 
-    outfile = joinpath(outdir, "$(logfileroot).txt")
+    outfile = joinpath(outdir, logfileroot)
     save_log(LogFile(outfile), logs)
 
     if vis
