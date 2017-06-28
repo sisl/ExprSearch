@@ -32,45 +32,17 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-function logsystem()
-    logsys = LogSystem()
-
-    register_log!(logsys, "fitness", ["iter", "fitness"], [Int64, Float64])
-    register_log!(logsys, "code", ["iter", "code"], [Int64, String])
-    register_log!(logsys, "computeinfo", ["parameter", "value"], [String, Any])
-    register_log!(logsys, "parameters", ["parameter", "value"], [String, Any])
-    register_log!(logsys, "result", ["fitness", "expr", "best_at_eval", "total_evals"], 
-        [Float64, String, Int64, Int64])
-    register_log!(logsys, "elapsed_cpu_s", ["nevals", "elapsed_cpu_s"], 
-        [Int64, Float64]) 
-    register_log!(logsys, "current_best",  ["nevals", "fitness", "expr"], 
-        [Int64, Float64, String])
-    register_log!(logsys, "fitness5", ["iter", "fitness1", "fitness2", "fitness3",
-        "fitness4", "fitness5"], [Int64, Float64, Float64, Float64, Float64, Float64])
-
-    register_log!(logsys, "verbose1", ["msg"], [String])
-    register_log!(logsys, "current_best_print", ["msg"], [String], "current_best", 
-        x->begin
-            nevals, fitness, code = x
-            code = string(code)
-            code_short = take(code, 50) |> join
-            ["nevals: $nevals, best fitness=$(signif(fitness, 4))," * 
-                "code=$(code_short)"]
-        end)
-
-    register_log!(logsys, "pcfg_probs", ["iter", "probs_dict"], 
-        [Int64, Dict{Symbol,Vector{Float64}}], "dpcfg", 
-        x->begin
-            iter, dpcfg = x
-            [iter, dpcfg.pcfg.probs]
-        end)
-    register_log!(logsys, "elite_exprs", ["iter", "expr"], 
-        [Int64, Vector{String}], "elite_samples", 
-        x->begin
-            iter, elite_samples = x
-            elite_exprs = map(z->string(get_expr(z)), elite_samples)
-            [iter, elite_exprs]
-        end)
-
-    logsys
-end
+#cross-entropy method optimization
+[
+    (:num_samples, 1000),
+    (:iterations, 5),
+    (:elite_frac, 0.5),
+    (:w_new, 1.0),
+    (:w_prior, 0.1),
+    (:maxdepth, 10),
+    (:default_code, 0.0),
+    (:randchannel_width, 60),
+    (:ver, :cos),
+    (:deepdive_log, true),
+    (:outdir, Pkg.dir("ExprSearch/results/Symbolic_CE_deepdive"))
+]

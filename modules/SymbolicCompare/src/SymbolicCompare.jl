@@ -74,27 +74,27 @@ set_studyname(studyname::AbstractString) = global STUDYNAME = studyname
 
 function combine_mc_logs()
     dir = studypath(MC_NAME)
-    logjoin(dir, "symbolic_mc_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
+    logjoin(dir, "symbolic_mc_log", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_mcts_logs()
     dir = studypath(MCTS_NAME)
-    logjoin(dir, "symbolic_mcts_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
+    logjoin(dir, "symbolic_mcts_log", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_ge_logs()
     dir = studypath(GE_NAME)
-    logjoin(dir, "symbolic_ge_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
+    logjoin(dir, "symbolic_ge_log", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_gp_logs()
     dir = studypath(GP_NAME)
-    logjoin(dir, "symbolic_gp_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
+    logjoin(dir, "symbolic_gp_log", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 function combine_ce_logs()
     dir = studypath(CE_NAME)
-    logjoin(dir, "symbolic_ce_log.txt", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
+    logjoin(dir, "symbolic_ce_log", ["current_best", "elapsed_cpu_s"], [:name, :nevals],
         joinpath(dir, "subdirjoined"), cast_types=D_TYPES, verbose=VERBOSE)
 end
 
@@ -106,7 +106,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #MC
     if b_mc
         dir = studypath(MC_NAME)
-        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("MC", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
@@ -115,7 +115,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #MCTS
     if b_mcts
         dir = studypath(MCTS_NAME)
-        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:iter, :name])
         D[:algorithm] = fill("MCTS", nrow(D))
         rename!(D, :iter, :nevals)
@@ -125,7 +125,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #GE
     if b_ge
         dir = studypath(GE_NAME)
-        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("GE", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
@@ -134,7 +134,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #GP
     if b_gp
         dir = studypath(GP_NAME)
-        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("GP", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
@@ -143,7 +143,7 @@ function master_log(; b_mc=true, b_mcts=true, b_ge=true, b_gp=true, b_ce=true)
     #CE
     if b_ce
         dir = studypath(CE_NAME)
-        logs = load_log(LogFile(joinpath(dir, "subdirjoined.txt")))
+        logs = load_log(LogFile(joinpath(dir, "subdirjoined")))
         D = join(logs["elapsed_cpu_s"], logs["current_best"], on=[:nevals, :name])
         D[:algorithm] = fill("CE", nrow(D))
         append!(masterlog, D[[:nevals, :elapsed_cpu_s, :fitness, :expr, :algorithm, :name]])
