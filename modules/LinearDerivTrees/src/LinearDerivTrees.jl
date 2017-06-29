@@ -49,6 +49,7 @@ using ExprSearch
 using GrammaticalEvolution
 using DataStructures
 using RLESUtils, MemPools
+using JLD
 
 import GrammaticalEvolution.Grammar
 import DerivationTrees: initialize!, actionspace, iscomplete, get_expr, pretty_string, get_sym
@@ -91,6 +92,21 @@ function LinearDerivTree(params::LDTParams; nodepool::Union{Void,MemPool}=nothin
     stack = Stack(DerivTreeNode, STACKSIZE)
     actions = LDTActions()
     LinearDerivTree(params, derivtree, stack, actions) 
+end
+
+type LinearDerivTreeSerial
+    params::LDTParams
+    derivtree::DerivationTree
+    actions::LDTActions
+end
+
+function JLD.writeas(t::LinearDerivTree)
+    LinearDerivTreeSerial(t.params, t.derivtree, t.actions)
+end
+
+function convert(::Type{LinearDerivTree}, t::LinearDerivTreeSerial)
+    stack = Stack(DerivTreeNode, STACKSIZE)
+    LinearDerivTree(t.params, t.derivtree, stack, t.actions)
 end
 
 push!(actions::LDTActions, a::Int64) = push!(actions.actions, a)
