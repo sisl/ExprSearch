@@ -47,7 +47,6 @@ import RLESTypes.SymbolTable
 using .DerivTreeMDPs
 using GrammaticalEvolution
 using GBMCTS
-using JLD
 
 import .DerivTreeMDPs.get_fitness
 import ..ExprSearch: SearchParams, SearchResult, exprsearch, ExprProblem, get_grammar, get_fitness,
@@ -149,18 +148,6 @@ function mcts_search(p::MCTSESParams, problem::ExprProblem)
   @notify_observer(p.logsys.observer, "parameters", ["q0", p.q0])
 
   return MCTSESResult(tree, best_actions, best_fitness, expr, policy.best_at_eval, policy.totalevals)
-end
-
-type MCTSESResultSerial <: SearchResult
-  actions::Vector{Int64}
-  fitness::Float64
-  expr::Union{Symbol,Expr}
-  best_at_eval::Int64
-  totalevals::Int64
-end
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::MCTSESResult)
-    MCTSESResultSerial(r.actions, r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

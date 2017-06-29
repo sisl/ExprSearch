@@ -48,7 +48,6 @@ using RLESUtils, GitUtils, CPUTimeUtils, RandUtils, Observers, LogSystems, TreeI
 using GrammaticalEvolution
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
-using JLD
 using DerivTreeVis
 using RLESTypes.SymbolTable
 
@@ -510,18 +509,6 @@ function generate(p::GPESParams, grammar::Grammar, mda::MinDepthByAction,
     sort!(newpop)
 
     newpop
-end
-
-type GPESResultSerial <: SearchResult
-    fitness::Float64
-    expr
-    best_at_eval::Int64
-    totalevals::Int64
-end
-
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::GPESResult)
-    GPESResultSerial(r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

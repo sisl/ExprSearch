@@ -48,7 +48,6 @@ using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandCh
 using LinearDerivTrees
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
-using JLD
 using DerivTreeVis
 using RLESTypes.SymbolTable
 
@@ -285,18 +284,6 @@ function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult,
         end
     end
     fitnesses
-end
-
-type CEESResultSerial <: SearchResult
-    fitness::Float64
-    expr
-    best_at_eval::Int64
-    totalevals::Int64
-end
-
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::CEESResult)
-    CEESResultSerial(r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

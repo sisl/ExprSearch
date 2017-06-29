@@ -45,15 +45,14 @@ export initialize!, actionspace, iscomplete, isleaf, expand_node!, is_decision,
     count_nonleafs
 export IncompleteException
 
-import Compat.ASCIIString
 using RLESUtils, MemPools, TreeIterators, TreeUtils
 using Reexport
 @reexport using GrammaticalEvolution
-
 using AbstractTrees
-import AbstractTrees: children, printnode
+using JLD
 
-import Base: length, copy!, string
+import AbstractTrees: children, printnode
+import Base: length, copy!, string, convert
 
 typealias DecisionRule Union{OrRule, RangeRule, RepeatedRule} #rules that require a decision
 
@@ -62,7 +61,7 @@ type DerivTreeParams
 end
 
 type DerivTreeNode
-    cmd::ASCIIString
+    cmd::String
     rule::Union{Rule,Void}
     action::Int64
     depth::Int64
@@ -83,11 +82,25 @@ type DerivationTree
     nodepool::MemPool
 end
 
+type DerivationTreeSerial
+    params::DerivTreeParams
+    root::DerivTreeNode
+    nopen::Int64
+    maxactions::Int64 #maximum size of actionspace
+end
+
 function DerivationTree(p::DerivTreeParams, nodepool::MemPool=NODEPOOL) 
     root = DerivTreeNode(p.grammar.rules[:start])
     maxactions = maxlength(p.grammar)
     tree = DerivationTree(p, root, 0, maxactions, nodepool)
     tree
+end
+
+convert(::Type{DerivationTree}, ds::DerivationTreeSerial) = 
+    DerivationTree(ds.params, ds.root, ds.nopen, ds.maxactions, NODEPOOL)
+
+function JLD.writeas(t::DerivationTree)
+    DerivationTreeSerial(t.params, t.root, t.nopen, t.maxactions)
 end
 
 include("formatter.jl")
