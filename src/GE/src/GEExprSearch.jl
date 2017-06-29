@@ -45,7 +45,6 @@ using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 using GrammaticalEvolution
 @reexport using LinearDerivTrees  #for pretty strings
 using CPUTime
-using JLD
 using RLESTypes.SymbolTable
 
 import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
@@ -186,18 +185,6 @@ function GrammaticalEvolution.evaluate!(grammar::Grammar, ind::ExampleIndividual
         ind.code = p.default_code
         ind.fitness = realmax(Float64)
     end
-end
-
-type GEESResultSerial <: SearchResult
-    genome::Vector{Int64}
-    fitness::Float64
-    expr
-    best_at_eval::Int64
-    totalevals::Int64
-end
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::GEESResult)
-    GEESResultSerial(r.genome, r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

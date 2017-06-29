@@ -46,7 +46,6 @@ using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems
 @reexport using LinearDerivTrees  #for pretty strings
 using GrammaticalEvolution
 using Iterators
-using JLD
 using RLESTypes.SymbolTable
 
 import ..ExprSearch: exprsearch, get_fitness, get_derivtree, get_expr
@@ -183,18 +182,6 @@ function copy!(dst::MCState, src::MCState)
     copy!(dst.tree, src.tree)
     dst.fitness = src.fitness
     dst.expr = src.expr
-end
-
-type MCESResultSerial <: SearchResult
-    actions::Vector{Int64}
-    fitness::Float64
-    expr
-    best_at_eval::Int64
-    totalevals::Int64
-end
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::MCESResult)
-    MCESResultSerial(r.actions, r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module

@@ -34,15 +34,21 @@
 
 module Symbolic_CE
 
-export symbolic_ce
+export symbolic_ce, configure
 
 using ExprSearch, SymbolicRegression, DerivTreeVis
 using ExprSearch.CE
-using RLESUtils, LogSystems, Loggers
-using Base.Test
+using RLESUtils, LogSystems, Loggers, Configure
+using DataFrames
+
+import Configure.configure
 
 const DIR = dirname(@__FILE__)
 const RESULTDIR = joinpath(DIR, "..", "..", "..", "results") 
+const CONFIGDIR = joinpath(dirname(@__FILE__), "..", "config")
+
+configure(::Type{Val{:Symbolic_CE}}, configs::AbstractString...) = 
+    configure_path(CONFIGDIR, configs...)
 
 """
 Example usage:
@@ -64,7 +70,9 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
                      ver::Symbol=:easy,
 
                      vis::Bool=true,
-                     vis_type::Symbol=:TEX
+                     vis_type::Symbol=:TEX,
+
+                     deepdive_log::Bool=false
                      )
     srand(seed)
     mkpath(outdir)
@@ -75,6 +83,27 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
     logs = TaggedDFLogger()
     send_to!(logs, logsys, ["code", "computeinfo", "current_best", "elapsed_cpu_s", "fitness",
         "parameters", "result"])
+
+    if deepdive_log
+        dlog = TaggedDFLogger()
+        send_to!(logsys, ["pcfg_probs"]) do x
+            iter, probs = x
+            for (s, ps) in probs
+                s = string(s)
+                if !haskey(dlog, s)
+                    add_folder!(dlog, s, fill(Float64,length(ps)))
+                end
+                push!(dlog, s, ps)
+            end
+        end
+        add_folder!(dlog, "elite_exprs", [Int64, String], ["iteration", "expr"])
+        send_to!(logsys, ["elite_exprs"]) do x
+            iter, exprs = x
+            for ex in exprs
+                push!(dlog, "elite_exprs", [iter, ex])
+            end
+        end
+    end
 
     problem = Symbolic(ver)
 
@@ -87,8 +116,13 @@ function symbolic_ce(;outdir::AbstractString=joinpath(RESULTDIR, "Symbolic_CE"),
     push!(logs, "parameters", ["seed", seed])
     push!(logs, "parameters", ["version", ver])
 
-    outfile = joinpath(outdir, "$(logfileroot).txt")
+    outfile = joinpath(outdir, logfileroot)
     save_log(LogFile(outfile), logs)
+
+    if deepdive_log
+        outfile = joinpath(outdir, "$(logfileroot)_deepdive")
+        save_log(LogFile(outfile), dlog)
+    end
 
     if vis
         derivtreevis(get_derivtree(result), joinpath(outdir, "$(logfileroot)_derivtreevis");

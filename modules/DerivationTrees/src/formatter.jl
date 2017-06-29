@@ -36,7 +36,7 @@ export Format, pretty_string, f_args, get_cmd
 
 using RLESUtils, StringUtils
 
-typealias Format Dict{ASCIIString,Function} #usage: D[cmd] = f(cmd, args)
+typealias Format Dict{String,Function} #usage: D[cmd] = f(cmd, args)
 
 f_args(cmd, args) = "$cmd(" * join(args,", ") * ")"
 get_cmd(cmd, args) = "$cmd"

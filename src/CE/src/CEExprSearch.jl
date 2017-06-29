@@ -48,7 +48,6 @@ using RLESUtils, GitUtils, CPUTimeUtils, Observers, LogSystems, MemPools, RandCh
 using LinearDerivTrees
 @reexport using DerivationTrees  #for pretty strings
 using CPUTime
-using JLD
 using DerivTreeVis
 using RLESTypes.SymbolTable
 
@@ -113,7 +112,7 @@ function ce_search(p::CEESParams, problem::ExprProblem)
     cfg = get_grammar(problem)
     result = CEESResult(cfg) 
     dpcfg = DepthAwarePCFG(cfg) #initialize to uniform probabilities
-    dpcfg_new = copy(dpcfg) #for blending of new and old
+    dpcfg_elite = copy(dpcfg) #for blending of new and old
     dpcfg_prior = copy(dpcfg) #uniform prior to ensure full support over domain
 
     @notify_observer(p.logsys.observer, "dpcfg", [0, dpcfg])
@@ -145,12 +144,16 @@ function ce_search(p::CEESParams, problem::ExprProblem)
         elite_n = round(Int, p.elite_frac * p.num_samples)
         elite_samples = samples[order[1:elite_n]] 
 
+        @notify_observer(p.logsys.observer, "elite_samples", [iter, elite_samples])
+
         # Fit elite distribution
-        fit_mle!(dpcfg_new, elite_samples)
+        fit_mle!(dpcfg_elite, elite_samples)
+
+        @notify_observer(p.logsys.observer, "dpcfg_elite", [iter, dpcfg_elite])
 
         # Blend old and new distributions 
-        # dpcfg = (w_new) * dpcfg_new + (1-w_new) * dpcfg_old
-        weighted_sum!(dpcfg, 1.0-p.w_new, dpcfg_new, p.w_new)
+        # dpcfg = (w_new) * dpcfg_elite + (1-w_new) * dpcfg_old
+        weighted_sum!(dpcfg, 1.0-p.w_new, dpcfg_elite, p.w_new)
 
         # Include uniform prior
         # dpcfg = (1-w_prior) * dpcfg + (w_prior) * dpcfg_prior
@@ -281,18 +284,6 @@ function parallel_evaluate(p::CEESParams, samples::Samples, result::CEESResult,
         end
     end
     fitnesses
-end
-
-type CEESResultSerial <: SearchResult
-    fitness::Float64
-    expr
-    best_at_eval::Int64
-    totalevals::Int64
-end
-
-#don't store the tree to JLD, it's too big and causes stackoverflowerror
-function JLD.writeas(r::CEESResult)
-    CEESResultSerial(r.fitness, r.expr, r.best_at_eval, r.totalevals)
 end
 
 end #module
